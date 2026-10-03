@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lector de Manga</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <h1>📚 Lector de Manga</h1>
+  <input id="search" type="search" placeholder="Buscar…">
+  <button id="btn-fav-filter" class="btn" title="Mostrar solo favoritos">★ Favoritos</button>
+  <button id="btn-add-files" class="btn primary">+ Archivos / CBZ</button>
+  <button id="btn-add-folder" class="btn primary">+ Carpeta</button>
+  <input id="in-files" type="file" multiple accept=".cbz,.zip,image/*" hidden>
+  <input id="in-folder" type="file" webkitdirectory multiple hidden>
+</header>
+
+<main id="library" class="grid"></main>
+<p id="empty" class="empty">Tu biblioteca está vacía. Añade archivos CBZ/ZIP, imágenes o una carpeta de imágenes.<br>También puedes arrastrarlos aquí.</p>
+
+<section id="reader" class="reader" hidden>
+  <div class="reader-bar">
+    <button id="r-back" class="btn">← Biblioteca</button>
+    <span id="r-title" class="r-title"></span>
+    <span id="r-pos" class="r-pos"></span>
+    <button id="r-mode" class="btn" title="Cambiar modo (M)"></button>
+    <button id="r-dir" class="btn" title="Cambiar dirección (D)"></button>
+    <button id="r-fav" class="btn" title="Favorito (F)">☆</button>
+  </div>
+  <div id="r-view" class="r-view" tabindex="0"></div>
+  <input id="r-slider" type="range" min="1" value="1" class="r-slider">
+</section>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
