@@ -1213,8 +1213,11 @@ body.selection-mode .manga-card:not(.selected):active { opacity: 1; }
     <button class="nb" id="btn-cortos" onclick="setSection('cortos');closeMenu()">
       <i class="bi bi-file-earmark-text"></i> Cortos
     </button>
-    <button class="nb" id="btn-favoritos" onclick="setSection('favoritos');closeMenu()">
-      <i class="bi bi-star-fill" style="color:var(--accent)"></i> Favoritos
+    <button class="nb" id="btn-mis_favoritos" onclick="setSection('mis_favoritos');closeMenu()" title="Tus favoritos (cada usuario tiene los suyos)">
+      <i class="bi bi-star-fill" style="color:var(--accent)"></i> Mis favoritos
+    </button>
+    <button class="nb" id="btn-favoritos" onclick="setSection('favoritos');closeMenu()" title="Sección de la biblioteca (carpeta Favoritos)">
+      <i class="bi bi-folder2"></i> Carpeta Favoritos
     </button>
     <button class="nb" id="btn-busqueda" onclick="setSection('busqueda');closeMenu()" style="display:none;">
       <i class="bi bi-search"></i> Búsqueda
@@ -1695,6 +1698,7 @@ const state = {
   // ── multi-selection ──
   selMode:        false,
   selected:       new Set(),   // Set of manga.nombre
+  favs:           new Set(),   // favoritos del usuario (nombres en minúsculas)
   // ── sorting & filtering ──
   sortBy:         'az',        // 'az','za','newest','progress','random','tags_asc','tags_desc'
   statusFilter:   'all',       // 'all','unread','progress','done'
@@ -1741,6 +1745,7 @@ const catModal    = new bootstrap.Modal(document.getElementById('catModal'));
 
 // ── Init ───────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  loadFavoritos();
   loadCategoryData();
   abrirDesdeURL();          // ?abrir=<manga>&seccion=<x> (enlaces desde /inicio)
   loadHistorial();
@@ -1774,15 +1779,15 @@ async function abrirDesdeURL() {
     document.querySelectorAll('.nb[id^="btn-"]')
       .forEach(b => b.classList.remove('active', 'accent-active'));
     document.getElementById(`btn-${seccion}`)
-      .classList.add(seccion === 'favoritos' ? 'accent-active' : 'active');
+      .classList.add(seccion === 'mis_favoritos' ? 'accent-active' : 'active');
   }
 
   await loadSection(state.section);
   const objetivo = abrir.toLowerCase();
   let m = state.allMangas.find(x => x.nombre.toLowerCase() === objetivo);
 
-  // Si no está acá, lo movieron de sección después de indexarlo (favoritear
-  // mueve la carpeta). Le preguntamos al índice dónde vive ahora.
+  // Si no está acá, lo movieron de sección después de indexarlo. Le
+  // preguntamos al índice dónde vive ahora.
   if (!m) {
     const real = await _seccionRealDe(abrir);
     if (real && real !== state.section) {
@@ -1790,7 +1795,7 @@ async function abrirDesdeURL() {
       document.querySelectorAll('.nb[id^="btn-"]')
         .forEach(b => b.classList.remove('active', 'accent-active'));
       document.getElementById(`btn-${real}`)
-        ?.classList.add(real === 'favoritos' ? 'accent-active' : 'active');
+        ?.classList.add(real === 'mis_favoritos' ? 'accent-active' : 'active');
       await loadSection(real);
       m = state.allMangas.find(x => x.nombre.toLowerCase() === objetivo);
     }
@@ -2217,7 +2222,7 @@ function setSection(s) {
   document.querySelectorAll('.tags-preset-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.nb[id^="btn-"]').forEach(b => b.classList.remove('active','accent-active'));
   const btn = document.getElementById(`btn-${s}`);
-  if (btn) btn.classList.add(s === 'favoritos' ? 'accent-active' : 'active');
+  if (btn) btn.classList.add(s === 'mis_favoritos' ? 'accent-active' : 'active');
 
   // "Traducir faltantes" solo tiene sentido en una categoría real del
   // backend (largos/cortos) — favoritos mezcla ambas y busqueda no es una
@@ -2872,7 +2877,7 @@ function _updateToolbar() {
   document.getElementById('selAllBtn').textContent = allSel ? 'Ninguno' : 'Todo';
 
   const favBtn = document.getElementById('selFavBtn');
-  if (state.section === 'favoritos') {
+  if (state.section === 'mis_favoritos') {
     favBtn.innerHTML = '<i class="bi bi-star"></i><span class="sel-btn-label"> Quitar fav.</span>';
     favBtn.className = 'sel-btn unfav';
   } else {
@@ -2884,32 +2889,14 @@ function _updateToolbar() {
 async function bulkFavorite() {
   const names = [...state.selected];
   if (!names.length) return;
-  const tipoMap = {};
-  state.allMangas.forEach(m => { tipoMap[m.nombre] = m.tipo || state.section; });
-  const isFav = state.section === 'favoritos';
-  const msg   = isFav
-    ? `¿Quitar ${names.length} manga(s) de favoritos?`
-    : `¿Agregar ${names.length} manga(s) a favoritos?`;
-  if (!confirm(msg)) return;
-
-  _showSpinner(isFav ? 'Quitando de favoritos…' : 'Moviendo a favoritos…');
-  let ok = 0, fail = 0;
-  for (const nombre of names) {
-    const seccion = tipoMap[nombre] || state.section;
-    try {
-      const r = await fetch('/toggle_favorite_manga', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ manga_name: nombre, categoria: seccion, is_favorite: seccion === 'favoritos' }),
-      });
-      const d = await r.json();
-      if (d.success) ok++; else fail++;
-    } catch { fail++; }
+  const quitar = state.section === 'mis_favoritos';
+  try {
+    await marcarFavoritos(names, !quitar);
+  } catch (e) {
+    alert('Error: ' + e.message);
   }
-  _hideSpinner();
   exitSelectionMode();
   if (state.globalSearch) performGlobalSearch(state.searchTerm); else loadSection(state.section);
-  if (fail) alert(`${ok} movidos correctamente, ${fail} fallaron.`);
 }
 
 async function bulkDelete() {
@@ -3951,7 +3938,7 @@ async function showDetail(m) {
 
   renderMangaCatChips(m.nombre);
   updateDetailCatSelect();
-  updateFavBtn(m.tipo === 'favoritos');
+  updateFavBtn(esFavorito(m.nombre));
   detailModal.show();
 
   // Cargar recomendaciones y carpetas en paralelo con la info del manga
@@ -4353,15 +4340,42 @@ function updateFavBtn(isFav) {
   else        { btn.innerHTML = '<i class="bi bi-star"></i> Favorito'; btn.className = 'btn btn-warning btn-sm'; }
 }
 
+// ── Favoritos personales (cada usuario tiene los suyos, ver routes/favoritos.py) ──
+async function loadFavoritos() {
+  try {
+    const r = await fetch('/api/favoritos');
+    const d = await r.json();
+    state.favs = new Set((d.nombres || []).map(n => n.toLowerCase()));
+  } catch (e) {
+    console.error('[loadFavoritos]', e);
+  }
+}
+
+function esFavorito(nombre) {
+  return state.favs.has((nombre || '').toLowerCase());
+}
+
+async function marcarFavoritos(nombres, favorito) {
+  const r = await fetch('/api/favoritos', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nombres, favorito }),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok || !d.success) throw new Error(d.error || 'No se pudo actualizar');
+  state.favs = new Set(d.nombres.map(n => n.toLowerCase()));
+}
+
 async function toggleFavorite() {
   if (!state.manga) return;
-  const isFav = state.manga.tipo === 'favoritos';
-  if (!confirm(`¿${isFav ? 'Quitar de' : 'Añadir a'} favoritos?`)) return;
+  const favorito = !esFavorito(state.manga.nombre);
   try {
-    await fetch('/toggle_favorite_manga', { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ manga_name: state.manga.nombre, categoria: state.manga.tipo, is_favorite: isFav }) });
-    detailModal.hide(); loadSection(state.section);
-  } catch(e) { alert('Error: '+e.message); }
+    await marcarFavoritos([state.manga.nombre], favorito);
+    updateFavBtn(favorito);
+    if (state.section === 'mis_favoritos') loadSection(state.section);
+  } catch (e) {
+    alert('Error: ' + e.message);
+  }
 }
 
 async function deleteManga() {

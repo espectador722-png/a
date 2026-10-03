@@ -9,11 +9,12 @@ from difflib import SequenceMatcher
 from datetime import datetime
 from flask import (
     Blueprint, jsonify, request, send_from_directory,
-    render_template, redirect,
+    render_template, redirect, g,
 )
 from config import Config
 from routes import categorias
 from routes import colecciones
+from routes import favoritos
 from routes import indice
 from routes.helpers import (
     get_cached, invalidate_cache, find_content_dir, load_json, save_json,
@@ -275,14 +276,40 @@ def _get_manga_list(section: str) -> list[dict]:
     return get_cached(f"manga_list_{section}", _fetch, ttl=Config.CACHE_TTL_SHORT)
 
 
+def _lista_mis_favoritos() -> list[dict]:
+    """Favoritos personales del usuario actual, buscados en todas las
+    secciones. Cada ítem conserva su sección real en "tipo" (las URLs de
+    páginas y previews dependen de ella)."""
+    favs = {n.lower() for n in favoritos.nombres(g.usuario["usuario"])}
+    if not favs:
+        return []
+    items, vistos = [], set()
+    for section in MANGA_SECTION_DIRS:
+        for m in _get_manga_list(section):
+            clave = m["nombre"].lower()
+            if clave in favs and clave not in vistos:
+                vistos.add(clave)
+                items.append(m)
+    return items
+
+
+def _lista_de_seccion(section: str) -> list[dict] | None:
+    """Ítems de la grilla de una sección (o de los favoritos del usuario).
+    None si la sección no existe."""
+    if section == favoritos.SECCION:
+        return _lista_mis_favoritos()
+    if section not in MANGA_SECTION_DIRS:
+        return None
+    return _ocultar_archivados_en_carpeta(_get_manga_list(section), section)
+
+
 def _ocultar_archivados_en_carpeta(items: list[dict], section: str) -> list[dict]:
     """
     Oculta de la grilla de sección los mangas que están archivados en ≥1
-    carpeta de usuario (colección) — reduce ruido visual. Nunca se aplica en
-    Favoritos: favoritear mueve el archivo a esa carpeta física, así que nada
-    ahí puede solaparse con una sección normal (la excepción se cumple sola).
-    No se aplica a búsqueda global, recomendaciones, historial ni a la vista
-    de la propia colección — solo a la grilla plana de una sección.
+    carpeta de usuario (colección) — reduce ruido visual. No se aplica a la
+    carpeta Favoritos (comportamiento de siempre), a los favoritos personales,
+    a búsqueda global, recomendaciones, historial ni a la vista de la propia
+    colección — solo a la grilla plana de una sección.
     """
     if section == "favoritos":
         return items
@@ -355,12 +382,13 @@ def manga_list(section):
       per_page   — ítems por página (default: Config.PREVIEWS_POR_PAGINA; 0 = sin límite)
       tags_min   — filtrar mangas con al menos N tags (int)
       tags_max   — filtrar mangas con como máximo N tags (int); 0 = sin tags
-    """
-    if section not in MANGA_SECTION_DIRS:
-        return jsonify({"error": "sección inválida"}), 400
 
+    section puede ser "mis_favoritos": los favoritos del usuario actual.
+    """
     # ── Lista completa (cacheada) ─────────────────────────────────────────────
-    todos = _ocultar_archivados_en_carpeta(_get_manga_list(section), section)
+    todos = _lista_de_seccion(section)
+    if todos is None:
+        return jsonify({"error": "sección inválida"}), 400
 
     # ── Filtrado ──────────────────────────────────────────────────────────────
     q = request.args.get("q", "").strip().lower()
@@ -635,10 +663,9 @@ def manga_series(section):
         "sueltos": [ ...mangas sin serie... ]
       }
     """
-    if section not in MANGA_SECTION_DIRS:
+    todos = _lista_de_seccion(section)
+    if todos is None:
         return jsonify({"error": "sección inválida"}), 400
-
-    todos = _ocultar_archivados_en_carpeta(_get_manga_list(section), section)
 
     # ── Fase 1: agrupar ───────────────────────────────────────────────────────
     # groups: key → {"base": str, "items": [...], "manual": bool}
@@ -1272,72 +1299,12 @@ def get_manga_page(categoria, manga_name, filename):
 
 @manga_bp.route("/api/manga/check_favorite")
 def check_favorite_manga():
-    """Verifica si un manga está en favoritos."""
+    """Verifica si un manga está en los favoritos del usuario actual."""
     manga_name = safe_basename(request.args.get("manga_name", ""))
     if not manga_name:
         return jsonify({"is_favorite": False})
-    is_fav = os.path.exists(os.path.join(Config.FAVORITOS_DIR, manga_name))
-    return jsonify({"is_favorite": is_fav})
-
-
-@manga_bp.route("/toggle_favorite_manga", methods=["POST"])
-def toggle_favorite_manga():
-    """
-    Mueve un manga a/de Favoritos.
-    - is_favorite=True  → está EN favoritos, lo saca (devuelve a sección original)
-    - is_favorite=False → NO está en favoritos, lo mueve a Favoritos
-
-    Al mover a Favoritos guarda 'seccion_original' en metadata para poder
-    devolverlo al lugar correcto después.
-    """
-    data = request.json or {}
-    manga_name = safe_basename(data.get("manga_name", ""))
-    categoria = data.get("categoria")
-    is_favorite = data.get("is_favorite", False)
-
-    if not manga_name or categoria not in MANGA_SECTION_DIRS:
-        return jsonify({"success": False, "error": "Datos inválidos"}), 400
-
-    try:
-        src_dir, src_prev = MANGA_SECTION_DIRS[categoria]
-
-        if is_favorite:
-            # Sacar de favoritos → restaurar a sección original
-            meta = _get_manga_metadata(manga_name)
-            seccion_original = meta.get("seccion_original", "largos")
-            if seccion_original not in MANGA_SECTION_DIRS or seccion_original == "favoritos":
-                seccion_original = "largos"
-            dest_dir, dest_prev = MANGA_SECTION_DIRS[seccion_original]
-            move_content_with_preview(
-                src_dir, dest_dir, src_prev, dest_prev,
-                manga_name, Config.PREVIEW_EXTENSIONS,
-            )
-            # Limpiar seccion_original del metadata
-            ruta = find_content_dir([dest_dir], manga_name)
-            if ruta:
-                meta = load_json(os.path.join(ruta, METADATA_FILE), {})
-                meta.pop("seccion_original", None)
-                save_json(os.path.join(ruta, METADATA_FILE), meta)
-        else:
-            # Mover a favoritos → guardar sección original en metadata
-            dest_dir, dest_prev = MANGA_SECTION_DIRS["favoritos"]
-            # Guardar sección original ANTES de mover (mientras el archivo es accesible)
-            ruta_actual = find_content_dir([src_dir], manga_name)
-            if ruta_actual:
-                meta = load_json(os.path.join(ruta_actual, METADATA_FILE), {})
-                meta["seccion_original"] = categoria
-                save_json(os.path.join(ruta_actual, METADATA_FILE), meta)
-            move_content_with_preview(
-                src_dir, dest_dir, src_prev, dest_prev,
-                manga_name, Config.PREVIEW_EXTENSIONS,
-            )
-
-        invalidate_cache("manga_list_")
-        invalidate_cache("all_tags")
-        return jsonify({"success": True})
-    except Exception as e:
-        logger.exception("Error en toggle_favorite_manga")
-        return jsonify({"success": False, "error": str(e)}), 500
+    favs = {n.lower() for n in favoritos.nombres(g.usuario["usuario"])}
+    return jsonify({"is_favorite": manga_name.lower() in favs})
 
 
 # ── Mover manga entre secciones ──────────────────────────────────────────────
@@ -1413,6 +1380,8 @@ def rename_manga():
         # Actualizar metadata interna (campo title no se toca, es el título real)
         meta = load_json(os.path.join(dest_path, METADATA_FILE), {})
         save_json(os.path.join(dest_path, METADATA_FILE), meta)
+
+        favoritos.renombrar_en_todos(manga_name, new_name)
 
         invalidate_cache("manga_list_")
         invalidate_cache("all_tags")

@@ -54,6 +54,9 @@ class Config:
     SECRET_KEY_FILE = os.path.join(DATA_DIR, "secret_key")
     ADMIN_USER = _env("ADMIN_USER", "admin")
     ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
+    # Cuenta que recibe (una sola vez) los mangas de la carpeta Favoritos
+    # cuando los favoritos pasaron a ser personales (routes/favoritos.py).
+    FAVORITOS_CARPETA_USUARIO = _env("FAVORITOS_CARPETA_USUARIO", "senpai1940")
     SESSION_DIAS = 30
 
     # ── Índice de la biblioteca (SQLite) ──────────────────────────────────────

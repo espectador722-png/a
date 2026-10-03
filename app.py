@@ -10,6 +10,7 @@ from routes.manga_traductor import manga_traductor_bp
 from routes.descargas import descargas_bp
 from routes.categorias import categorias_bp
 from routes.colecciones import colecciones_bp
+from routes.favoritos import favoritos_bp
 from routes import indice
 
 # Configurar logging ANTES de importar cualquier módulo que use logging
@@ -68,6 +69,7 @@ def create_app():
     app.register_blueprint(descargas_bp)
     app.register_blueprint(categorias_bp)
     app.register_blueprint(colecciones_bp)
+    app.register_blueprint(favoritos_bp)
 
     # Favicon: algunos navegadores lo piden en /favicon.ico aunque haya <link rel="icon">
     @app.route("/favicon.ico")

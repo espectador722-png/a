@@ -20,9 +20,10 @@ Todos entran con usuario y contraseña. Hay dos roles:
 | Acción | Lector | Admin |
 |---|:---:|:---:|
 | Ver la biblioteca, buscar, leer, guardar progreso | ✅ | ✅ |
+| Marcar sus propios favoritos | ✅ | ✅ |
 | Cambiar su propia contraseña | ✅ | ✅ |
 | Descargas (hitomi, 3hentai) | | ✅ |
-| Borrar, mover, renombrar, favoritos, tags, series, colecciones, categorías | | ✅ |
+| Borrar, mover, renombrar, tags, series, colecciones, categorías | | ✅ |
 | Traductor, exportar, abrir carpeta | | ✅ |
 | Duplicados y sorteo | | ✅ |
 | Crear y administrar usuarios (`/usuarios`) | | ✅ |
@@ -30,6 +31,8 @@ Todos entran con usuario y contraseña. Hay dos roles:
 Los permisos se aplican en el servidor (`routes/auth.py`), no solo en la interfaz. Cualquier ruta nueva que modifique algo queda **solo para admin por defecto**. Para que un lector pueda usarla hay que agregarla a `ESCRITURA_LECTOR`.
 
 **Primer arranque:** si no existe ninguna cuenta, se crea un admin con `ADMIN_USER` (por defecto `admin`) y `ADMIN_PASSWORD`. Sin `ADMIN_PASSWORD` no se crea nada y nadie puede entrar. Después, el resto de las cuentas se crean desde `/usuarios`.
+
+**Favoritos:** cada usuario tiene los suyos ("Mis favoritos"), y marcar uno no mueve ningún archivo. La carpeta física `Favoritos` quedó como una sección más ("Carpeta Favoritos"). La primera vez que entra la cuenta `FAVORITOS_CARPETA_USUARIO` (por defecto `senpai1940`), los mangas de esa carpeta pasan a ser sus favoritos.
 
 Las contraseñas se guardan con hash (nunca en claro). Tras 5 intentos fallidos desde la misma IP, el login se bloquea 5 minutos. Cambiar la contraseña o el rol de alguien cierra sus sesiones abiertas.
 
@@ -51,6 +54,7 @@ Todo se configura con variables de entorno. Los valores por defecto son las ruta
 | `DATA_DIR` | `D:/General` | Datos de la app: usuarios, índice, historial de sorteo |
 | `ADMIN_USER` | `admin` | Usuario del primer admin |
 | `ADMIN_PASSWORD` | — | Contraseña del primer admin (solo se usa si no hay cuentas) |
+| `FAVORITOS_CARPETA_USUARIO` | `senpai1940` | Cuenta que recibe los mangas de la carpeta Favoritos como favoritos |
 | `SECRET_KEY` | se genera en `DATA_DIR/secret_key` | Firma de las cookies de sesión |
 | `PORT` | `5000` | Puerto del servidor |
 | `TRADUCTOR_DIR` | `C:\Herramientas\manga-image-translator` | Instalación del traductor |
@@ -60,6 +64,7 @@ Todo se configura con variables de entorno. Los valores por defecto son las ruta
 Primer arranque en Windows (PowerShell):
 
 ```powershell
+$env:ADMIN_USER = "senpai1940"
 $env:ADMIN_PASSWORD = "una-contraseña-larga"
 python app.py
 ```
@@ -77,6 +82,7 @@ routes/
   indice.py         índice SQLite incremental
   categorias.py     secciones editables
   colecciones.py    carpetas virtuales
+  favoritos.py      favoritos personales de cada usuario
   image_hash.py     duplicados por hash perceptual
   manga_export.py   CBZ / PDF
   manga_traductor*.py, cache_overflow.py   traductor (opcional)

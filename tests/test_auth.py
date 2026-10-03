@@ -91,7 +91,6 @@ def test_lector_puede_guardar_progreso(lector):
     ("post", "/delete_manga"),
     ("post", "/api/manga/mover"),
     ("post", "/api/manga/rename"),
-    ("post", "/toggle_favorite_manga"),
     ("post", "/api/manga/serie"),
     ("post", "/api/manga/abrir-carpeta"),
     ("post", "/api/manga/exportar"),
