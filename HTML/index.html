@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-rol="{{ g.usuario.rol }}" data-usuario="{{ g.usuario.usuario }}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -1178,6 +1178,8 @@ body.selection-mode .manga-card:not(.selected):active { opacity: 1; }
   font-size: 13px; color: var(--muted2);
 }
 </style>
+<link rel="stylesheet" href="/static/css/sesion.css">
+<script src="/static/js/sesion.js"></script>
 </head>
 <body>
 
@@ -1205,9 +1207,6 @@ body.selection-mode .manga-card:not(.selected):active { opacity: 1; }
 
   <!-- Nav buttons (desktop inline / mobile bottom bar) -->
   <div class="nav-btns" id="navBtns">
-    <button class="nb" onclick="location.href='/inicio'" title="Portada con búsqueda global">
-      <i class="bi bi-house-door"></i> Inicio
-    </button>
     <button class="nb active" id="btn-largos" onclick="setSection('largos');closeMenu()">
       <i class="bi bi-journals"></i> Largos
     </button>
@@ -1222,9 +1221,6 @@ body.selection-mode .manga-card:not(.selected):active { opacity: 1; }
     </button>
     <button class="nb" onclick="openCatModal();closeMenu()">
       <i class="bi bi-tags"></i> Tags
-    </button>
-    <button class="nb" onclick="location.href='/manga-sorteo'">
-      <i class="bi bi-shuffle"></i> Sorteo
     </button>
   </div>
 
@@ -1434,7 +1430,7 @@ body.selection-mode .manga-card:not(.selected):active { opacity: 1; }
             <div>
               <div class="meta-section-title">Tags del manga</div>
               <div id="mangaCatChips" class="d-flex flex-wrap gap-2 mb-2"></div>
-              <div class="input-group input-group-sm">
+              <div class="input-group input-group-sm solo-admin">
                 <select id="addCatSelect" class="form-select">
                   <option value="">Añadir tag…</option>
                 </select>
@@ -1472,7 +1468,7 @@ body.selection-mode .manga-card:not(.selected):active { opacity: 1; }
           <i class="bi bi-book"></i> Leer
         </button>
         <button id="favBtn" class="btn btn-warning btn-sm" onclick="toggleFavorite()"></button>
-        <div class="dropdown">
+        <div class="dropdown solo-admin">
           <button class="btn btn-outline-light btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
             <i class="bi bi-download"></i> Exportar
           </button>
@@ -3748,7 +3744,7 @@ async function loadDetailCarpetas(nombre) {
     const chip = document.createElement('span');
     chip.className = 'badge rounded-pill text-bg-secondary d-inline-flex align-items-center gap-1';
     chip.style.fontWeight = '400';
-    chip.innerHTML = `<i class="bi bi-folder2"></i> ${_esc(col.nombre)} <i class="bi bi-x-lg" style="cursor:pointer;opacity:.7;" title="Quitar de esta carpeta"></i>`;
+    chip.innerHTML = `<i class="bi bi-folder2"></i> ${_esc(col.nombre)} <i class="bi bi-x-lg solo-admin" style="cursor:pointer;opacity:.7;" title="Quitar de esta carpeta"></i>`;
     chip.querySelector('.bi-x-lg').addEventListener('click', async (e) => {
       e.stopPropagation();
       const ok = await quitarDeColeccion(col.id, nombre);
@@ -3761,7 +3757,7 @@ async function loadDetailCarpetas(nombre) {
 
   const addBtn = document.createElement('button');
   addBtn.type = 'button';
-  addBtn.className = 'btn btn-sm btn-outline-light py-0 px-2';
+  addBtn.className = 'btn btn-sm btn-outline-light py-0 px-2 solo-admin';
   addBtn.style.fontSize = '11px';
   addBtn.innerHTML = '<i class="bi bi-folder-plus"></i> Agregar a carpeta';
   addBtn.addEventListener('click', () => openColPicker([nombre]));

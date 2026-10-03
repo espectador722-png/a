@@ -14,6 +14,7 @@ from flask import (
 from config import Config
 from routes import categorias
 from routes import colecciones
+from routes import indice
 from routes.helpers import (
     get_cached, invalidate_cache, find_content_dir, load_json, save_json,
     list_previews, move_content_with_preview, safe_basename,
@@ -299,20 +300,9 @@ def index():
     return render_template("index.html")
 
 
-@manga_bp.route("/reproductor-universal.html")
-def reproductor_universal():
-    return render_template("reproductor-universal.html")
-
-
-@manga_bp.route("/reproductor-universal-galeria")
-@manga_bp.route("/reproductor-universal-galeria.html")
-def reproductor_universal_galeria():
-    return render_template("reproductor-universal-galeria.html")
-
-
-@manga_bp.route("/index-reproductor.html")
-def index_reproductor():
-    return redirect("/reproductor-universal.html")
+@manga_bp.route("/")
+def inicio():
+    return redirect("/manga")
 
 
 @manga_bp.route("/manga-sorteo")
@@ -322,6 +312,34 @@ def manga_sorteo_page():
 
 
 # ── APIs de listado ───────────────────────────────────────────────────────────
+
+@manga_bp.route("/api/buscar")
+def api_buscar_indice():
+    """Búsqueda por texto sobre el índice SQLite (routes/indice.py).
+    Query: q (texto), limite (1-300, por defecto 60)."""
+    q = request.args.get("q", "").strip()
+    try:
+        limite = max(1, min(300, int(request.args.get("limite", 60))))
+    except ValueError:
+        limite = 60
+    if not q:
+        return jsonify({"q": "", "total": 0, "resultados": []})
+    resultados = [
+        {
+            "nombre":  it["nombre"],
+            "seccion": it["seccion"],
+            "titulo":  it.get("titulo") or it["nombre"],
+            "preview": it.get("preview", ""),
+        }
+        for it in indice.buscar(q, ("manga",), limite)
+    ]
+    return jsonify({
+        "q":          q,
+        "total":      len(resultados),
+        "resultados": resultados,
+        "listo":      indice.estado["ultimo_scan"] > 0,
+    })
+
 
 @manga_bp.route("/api/mangas/<section>")
 def manga_list(section):

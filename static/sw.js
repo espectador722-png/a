@@ -1,39 +1,31 @@
-/* sw.js — service worker de la Biblioteca
+/* sw.js — service worker de la Biblioteca de Manga
  *
  * Objetivo: que la app abra al instante en el celular y que las miniaturas ya
  * vistas no se vuelvan a bajar por wifi.
  *
- * Reglas, en orden de importancia:
- *   1. Los videos NUNCA pasan por acá. Se sirven con Range requests (respuestas
- *      206) y meterlos en Cache Storage rompe el seek y llena el disco.
- *   2. Las imágenes (previews y páginas) van a caché primero: el nombre del
+ * Reglas:
+ *   1. Las imágenes (previews y páginas) van a caché primero: el nombre del
  *      archivo identifica el contenido, así que si está cacheado, sirve.
- *   3. Las APIs van a red primero, con la última respuesta buena como respaldo,
- *      para que la home muestre algo aunque el server esté apagado.
+ *   2. Las páginas HTML van a red primero (dependen de la sesión y del rol);
+ *      el caché solo se usa si el servidor no responde.
+ *   3. Las APIs no se cachean nunca.
  *
  * Al tocar este archivo, subí VERSION: eso invalida los cachés viejos.
  */
-const VERSION    = 'v1';
+const VERSION    = 'v2';
 const CACHE_APP  = `app-${VERSION}`;     // shell: HTML, CSS, iconos
 const CACHE_IMG  = `img-${VERSION}`;     // previews y páginas
-const CACHE_API  = `api-${VERSION}`;     // respaldo de /api/home
 const MAX_IMG    = 900;                  // techo del caché de imágenes
 
 const SHELL = [
-  '/inicio',
+  '/manga',
   '/static/favicon.svg',
   '/static/icons/icon-192.png',
   '/static/vendor/bootstrap-icons/font/bootstrap-icons.css',
 ];
 
 // Rutas que sirven imágenes cacheables
-const RE_IMG = /^\/(get_manga_preview|get_manga_page|preview_hentai|preview_animacion|preview_artista|preview_xxx|preview_xxx_category|galeria_img|mangas)\//;
-
-// Rutas de video: se dejan pasar sin tocar (Range requests)
-const RE_VIDEO = /^\/(hentai|animacion|xxx)\/[^/]+\/.+\.(mp4|avi|mkv|webm)$/i;
-
-// APIs cuya última respuesta vale la pena guardar como respaldo
-const RE_API_CACHE = /^\/api\/(home|indice\/estado)$/;
+const RE_IMG = /^\/(get_manga_preview|get_manga_page|mangas)\//;
 
 
 self.addEventListener('install', event => {
@@ -46,7 +38,7 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('activate', event => {
-  const vigentes = [CACHE_APP, CACHE_IMG, CACHE_API];
+  const vigentes = [CACHE_APP, CACHE_IMG];
   event.waitUntil(
     caches.keys()
       .then(claves => Promise.all(
@@ -71,7 +63,6 @@ self.addEventListener('fetch', event => {
   let url;
   try { url = new URL(req.url); } catch { return; }
   if (url.origin !== self.location.origin) return;
-  if (RE_VIDEO.test(url.pathname)) return;
 
   if (RE_IMG.test(url.pathname)) {
     event.respondWith(cachePrimero(req, CACHE_IMG, MAX_IMG));
@@ -80,11 +71,6 @@ self.addEventListener('fetch', event => {
 
   if (url.pathname.startsWith('/static/')) {
     event.respondWith(revalidarEnSegundoPlano(req, CACHE_APP));
-    return;
-  }
-
-  if (RE_API_CACHE.test(url.pathname)) {
-    event.respondWith(redPrimero(req, CACHE_API));
     return;
   }
 
@@ -126,27 +112,12 @@ async function revalidarEnSegundoPlano(req, nombreCache) {
   return hit || red;
 }
 
-async function redPrimero(req, nombreCache) {
-  const cache = await caches.open(nombreCache);
-  try {
-    const res = await fetch(req);
-    if (res.ok) cache.put(req, res.clone());
-    return res;
-  } catch (e) {
-    const hit = await cache.match(req);
-    return hit || new Response(
-      JSON.stringify({ error: 'sin conexión', offline: true }),
-      { status: 503, headers: { 'Content-Type': 'application/json' } }
-    );
-  }
-}
-
 async function navegacion(req) {
   try {
     return await fetch(req);
   } catch (e) {
     const cache = await caches.open(CACHE_APP);
-    return (await cache.match(req)) || (await cache.match('/inicio')) ||
+    return (await cache.match(req)) || (await cache.match('/manga')) ||
       new Response('<h1>Sin conexión</h1><p>El servidor no responde.</p>',
                    { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
   }

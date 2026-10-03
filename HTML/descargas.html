@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-rol="{{ g.usuario.rol }}" data-usuario="{{ g.usuario.usuario }}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -35,19 +35,6 @@ a{color:inherit;text-decoration:none}
   .nav-link-btn { padding: 6px 10px; font-size: 12px; }
 }
 .wrap{max-width:1400px;margin:0 auto;padding:16px 14px}
-/* novedades: episodios nuevos de series que ya tenemos */
-.novedades-banner{background:rgba(236,64,122,.08);border:1px solid rgba(236,64,122,.3);border-radius:var(--r);padding:12px 14px;margin-bottom:16px}
-.novedades-head{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--pink);margin-bottom:10px}
-.novedades-head i:first-child{font-size:15px}
-.novedades-close{margin-left:auto;background:none;border:none;color:var(--muted2);cursor:pointer;font-size:13px;padding:2px 6px}
-.novedades-close:hover{color:var(--text)}
-.novedades-list{display:flex;flex-direction:column;gap:6px}
-.novedad-item{display:flex;align-items:center;gap:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:12.5px}
-.novedad-item .nom{flex:1;font-weight:600;color:var(--text)}
-.novedad-item .eps{color:var(--muted2);font-size:11.5px}
-.novedad-item button{background:var(--pink);border:none;color:#fff;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:5px}
-.novedad-item button:hover{filter:brightness(1.1)}
-.novedad-item button:disabled{opacity:.5;cursor:not-allowed}
 
 /* toolbar */
 .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px}
@@ -68,8 +55,6 @@ a{color:inherit;text-decoration:none}
 .btn2.pink{border-color:rgba(236,64,122,.35);color:#f48fb1}
 .btn2.pink:hover{background:rgba(236,64,122,.18)}
 select.inp{max-width:100%;text-overflow:ellipsis;border-radius:8px;cursor:pointer}
-.layout{display:grid;grid-template-columns:1fr 360px;gap:18px;align-items:start}
-@media(max-width:900px){.layout{grid-template-columns:1fr}}
 /* results grid */
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;cursor:pointer;transition:.15s;display:flex;flex-direction:column}
@@ -195,43 +180,29 @@ select.inp{max-width:100%;text-overflow:ellipsis;border-radius:8px;cursor:pointe
 .spin{width:26px;height:26px;border:3px solid var(--surface3);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;margin:0 auto}
 @keyframes sp{to{transform:rotate(360deg)}}
 </style>
+<link rel="stylesheet" href="/static/css/sesion.css">
+<script src="/static/js/sesion.js"></script>
 </head>
 <body>
 
 <div class="top-nav">
   <div class="brand"><div class="brand-icon"><i class="bi bi-download"></i></div><span class="brand-text">Descargas</span></div>
   <div class="nav-spacer"></div>
-  <button class="nav-link-btn" onclick="location.href='/inicio'"><i class="bi bi-house-door"></i> Inicio</button>
   <button class="nav-link-btn" onclick="location.href='/manga'"><i class="bi bi-book-half"></i> Manga</button>
-  <button class="nav-link-btn" onclick="location.href='/reproductor-universal-galeria.html'"><i class="bi bi-collection-play"></i> Media</button>
 </div>
 
 <div class="wrap">
-  <div class="novedades-banner" id="novedadesBanner" style="display:none">
-    <div class="novedades-head">
-      <i class="bi bi-bell-fill"></i>
-      <span id="novedadesTitulo"></span>
-      <button class="novedades-close" onclick="document.getElementById('novedadesBanner').style.display='none'">✕</button>
-    </div>
-    <div class="novedades-list" id="novedadesList"></div>
-  </div>
-
   <div class="toolbar">
     <select class="inp" id="site" onchange="cambiarSite()">
-      <option value="hentaila">Hentaila (episodios)</option>
-      <option value="3hentai">3Hentai (manga/galerías)</option>
-      <option value="hitomi">Hitomi.la (manga/galerías)</option>
+      <option value="hitomi">Hitomi.la</option>
+      <option value="3hentai">3Hentai</option>
     </select>
     <div class="search-box">
       <i class="bi bi-search"></i>
-      <input class="inp" id="q" placeholder="Buscar hentai…" autocomplete="off"
+      <input class="inp" id="q" placeholder="Buscar galerías…" autocomplete="off"
         oninput="onQInput()" onkeydown="onQKeydown(event)" onblur="setTimeout(ocultarSugerencias,150)">
       <div class="suggest-box" id="suggestBox"></div>
     </div>
-    <button class="btn2 active" id="tab-cat" onclick="setModo('catalogo')"><i class="bi bi-grid"></i> Catálogo</button>
-    <button class="btn2" id="tab-hub" onclick="setModo('hub')"><i class="bi bi-fire"></i> Recientes</button>
-    <select class="inp" id="genre" onchange="buscar(1)"><option value="">Todos los géneros</option></select>
-    <button class="btn2 pink" onclick="regenerarPreviews(this)"><i class="bi bi-image"></i> Regenerar previews</button>
   </div>
 
   <div class="toolbar" id="hitomiFiltrosBox" style="display:none">
@@ -258,61 +229,8 @@ select.inp{max-width:100%;text-overflow:ellipsis;border-radius:8px;cursor:pointe
     <button class="btn2 active" onclick="descargarGaleriaUrl()"><i class="bi bi-download"></i> Descargar galería</button>
   </div>
 
-  <div class="panel" id="agregarVideoPanel" style="margin-bottom:16px;position:static">
-    <h3><span><i class="bi bi-camera-video"></i> Agregar video</span></h3>
-    <div class="toolbar" style="margin:0 0 10px">
-      <select class="inp" id="avLib" onchange="avCambiarLib()">
-        <option value="hentai">Hentai</option>
-        <option value="animacion">Animación</option>
-        <option value="xxx">XXX</option>
-      </select>
-      <select class="inp" id="avSeccion" style="display:none">
-        <option value="largos">Largos</option>
-        <option value="cortos">Cortos</option>
-        <option value="favoritos">Favoritos</option>
-      </select>
-      <select class="inp" id="avCarpeta" onchange="avOnCarpetaChange()"></select>
-      <input class="inp" id="avCarpetaNueva" placeholder="Nombre de la carpeta nueva" style="display:none">
-      <input class="inp" id="avAnimacion" placeholder="Nombre de la animación" style="display:none">
-    </div>
-
-    <div class="toolbar" style="margin:0 0 6px">
-      <label class="btn2" style="cursor:pointer" for="avArchivo">
-        <i class="bi bi-upload"></i> Elegir archivo de video
-      </label>
-      <input type="file" id="avArchivo" accept="video/*" style="display:none" onchange="avArchivoElegido()">
-      <span id="avArchivoNombre" style="color:var(--muted2);font-size:12.5px"></span>
-      <button class="btn2 active" id="avBtnSubir" onclick="avSubir()" disabled><i class="bi bi-cloud-upload"></i> Subir</button>
-    </div>
-
-    <div class="toolbar" style="margin:0">
-      <div class="search-box" style="max-width:520px">
-        <i class="bi bi-link-45deg"></i>
-        <input class="inp" id="avUrl" placeholder="O pegar una URL (YouTube, etc.)" onkeydown="if(event.key==='Enter')avDescargarUrl()">
-      </div>
-      <button class="btn2 active" onclick="avDescargarUrl()"><i class="bi bi-download"></i> Descargar</button>
-    </div>
-
-    <div class="list" id="avQlist" style="margin-top:10px"></div>
-  </div>
-
-  <div class="layout">
-    <div>
-      <div class="grid" id="grid"><div class="state"><div class="spin"></div></div></div>
-      <div class="pager" id="pager"></div>
-    </div>
-
-    <div class="panel">
-      <h3>
-        <span><i class="bi bi-list-check"></i> Cola de descargas</span>
-        <span style="display:flex;align-items:center;gap:8px;">
-          <span id="qcount" style="color:var(--muted);font-weight:400"></span>
-          <button class="btn2" id="btnLimpiarCompletados" style="padding:4px 10px;font-size:11px;display:none;" onclick="limpiarCompletados()"><i class="bi bi-check2-all"></i> Limpiar completados</button>
-        </span>
-      </h3>
-      <div class="list" id="qlist"><div class="state" style="padding:20px">Sin descargas todavía.</div></div>
-    </div>
-  </div>
+  <div class="grid" id="grid"><div class="state"><div class="spin"></div></div></div>
+  <div class="pager" id="pager"></div>
 </div>
 
 <!-- Detail modal -->
@@ -329,20 +247,9 @@ select.inp{max-width:100%;text-overflow:ellipsis;border-radius:8px;cursor:pointe
     </div>
     <div class="modal-b">
       <div class="syn" id="msyn"></div>
-      <div class="eps-head" id="mepsHead"><b>Episodios</b>
-        <button class="btn2" style="padding:4px 10px;font-size:12px" onclick="toggleTodos()"><i class="bi bi-check2-all"></i> Todos</button>
-      </div>
-      <div class="eps" id="meps"></div>
       <div class="gal-meta" id="mgalMeta"></div>
-      <div class="modal-foot" id="mfootDefault">
-        <button class="btn2" id="mdlcap" onclick="encolar('capitulos')" style="padding:9px 16px"><i class="bi bi-list-ol"></i> Descargar capítulos</button>
-        <button class="btn-primary2" id="mdlfull" onclick="encolar('completa')"><i class="bi bi-collection"></i> Descarga completa</button>
-      </div>
-      <div class="modal-foot" id="mfootGaleria" style="display:none">
+      <div class="modal-foot" id="mfootGaleria" style="display:flex">
         <button class="btn-primary2" id="mdlgaleria" onclick="descargarDesdeModal()"><i class="bi bi-download"></i> Descargar galería</button>
-      </div>
-      <div style="font-size:11px;color:var(--muted);margin-top:8px;text-align:right" id="mfootHint">
-        <b>Capítulos</b>: solo los episodios marcados · <b>Completa</b>: todos + imagen, tags y descripción
       </div>
     </div>
   </div>
@@ -379,7 +286,7 @@ select.inp{max-width:100%;text-overflow:ellipsis;border-radius:8px;cursor:pointe
 
 <script src="/static/js/zoom.js"></script>
 <script>
-let MODO='catalogo', PAGE=1, DETALLE=null, SELECC=new Set(), SITE='hentaila';
+let PAGE=1, DETALLE=null, SITE='hitomi';
 // ── Preview viewer ──
 // Port of the manga reader in index.html (page/scroll modes, auto-hiding HUD,
 // touch zones, swipe, preload, go-to-page, fullscreen) plus zoom.js. Reading
@@ -550,9 +457,6 @@ document.addEventListener('keydown',e=>{
   }
 });
 
-// Sitios cuyo contenido es "galería de imágenes" (manga completo, sin capítulos)
-// en vez de episodios de video — comparten el mismo flujo de descarga directa.
-const SITIOS_GALERIA=['3hentai','hitomi'];
 
 // Idiomas soportados por hitomi.la (nombres de índice .nozomi reales) — se
 // pueden combinar varios a la vez (OR entre sí) via ?language= repetido.
@@ -584,12 +488,9 @@ renderIdiomasHitomi();
 
 function cambiarSite(){
   SITE=document.getElementById('site').value;
-  const esGaleria=SITIOS_GALERIA.includes(SITE);
-  document.getElementById('galeriaUrlBox').style.display=esGaleria?'flex':'none';
+  document.getElementById('galeriaUrlBox').style.display='flex';
   document.getElementById('hitomiFiltrosBox').style.display=SITE==='hitomi'?'flex':'none';
   document.getElementById('hitomiIdiomasBox').style.display=SITE==='hitomi'?'flex':'none';
-  document.getElementById('tab-hub').style.display=esGaleria?'none':'';
-  document.getElementById('genre').style.display=esGaleria?'none':'';
   const urlInput=document.getElementById('galeriaUrl');
   urlInput.placeholder=SITE==='hitomi'
     ?'Pegar URL o id de galería hitomi.la (ej: https://hitomi.la/galleries/123456.html)'
@@ -667,15 +568,6 @@ function mostrarAvisoDuplicado(site,d,slug){
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2600);}
 function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 
-async function cargarGeneros(){
-  try{const r=await fetch('/api/descargas/generos');const d=await r.json();
-    const sel=document.getElementById('genre');
-    (d.generos||[]).forEach(g=>{const o=document.createElement('option');o.value=g.slug;o.textContent=g.nombre;sel.appendChild(o);});
-  }catch(e){}
-}
-
-function setModo(m){MODO=m;document.getElementById('tab-cat').classList.toggle('active',m==='catalogo');document.getElementById('tab-hub').classList.toggle('active',m==='hub');buscar(1);}
-
 // ── Autocompletado de tags (solo hitomi) ────────────────────────────────────
 let _sugTimer=null, _sugIndex=-1, _sugItems=[];
 
@@ -750,9 +642,8 @@ async function buscar(page){
   grid.innerHTML='<div class="state"><div class="spin"></div></div>';
   document.getElementById('pager').innerHTML='';
   const q=document.getElementById('q').value.trim();
-  const genre=document.getElementById('genre').value;
-  const params=new URLSearchParams({site:SITE,seccion:MODO,page:PAGE});
-  if(q)params.set('q',q); if(genre)params.set('genre',genre);
+  const params=new URLSearchParams({site:SITE,page:PAGE});
+  if(q)params.set('q',q);
   if(SITE==='hitomi'){
     if(document.getElementById('hitomiPopularidad').checked)params.set('orden','popularidad');
     const minP=document.getElementById('hitomiMinPag').value;
@@ -767,10 +658,8 @@ async function buscar(page){
     const d=await r.json();
     if(d.error){grid.innerHTML='<div class="state">⚠ '+esc(d.error)+'</div>';return;}
     if(!d.items||!d.items.length){grid.innerHTML='<div class="state">Sin resultados.</div>';return;}
-    const esGaleria=SITIOS_GALERIA.includes(SITE);
-    grid.className='grid'+(esGaleria?' grid-galeria':'');
-    if(esGaleria){
-      grid.innerHTML=d.items.map(it=>`
+    grid.className='grid grid-galeria';
+    grid.innerHTML=d.items.map(it=>`
         <div class="gcard" onclick='abrirGaleria(${JSON.stringify(it.slug)})'>
           <div class="gthumb" style="background-image:url('${esc(it.poster)}')">
             ${it.tipo?`<span class="badge-tipo">${esc(it.tipo)}</span>`:''}
@@ -784,24 +673,10 @@ async function buscar(page){
             </div>
             ${it.generos&&it.generos.length?`<div class="gtags">${it.generos.slice(0,5).map(g=>`<span>${esc(g)}</span>`).join('')}</div>`:''}
             <div class="gfoot">
-              <button title="No volver a mostrar" onclick='event.stopPropagation();ocultar(${JSON.stringify(it.titulo)},this)'><i class="bi bi-eye-slash"></i></button>
               <button class="${it.ya_existe?'':'primary'}" onclick='event.stopPropagation();descargarGaleriaDirecto(${JSON.stringify(it.slug)},this)'>${it.ya_existe?'<i class="bi bi-check2"></i> Descargado':'<i class="bi bi-download"></i> Descargar'}</button>
             </div>
           </div>
         </div>`).join('');
-    }else{
-      grid.innerHTML=d.items.map(it=>`
-        <div class="card" onclick='abrir(${JSON.stringify(it.slug)})'>
-          <div class="thumb" style="background-image:url('${esc(it.poster)}')">
-            ${it.tipo?`<span class="badge-tipo">${esc(it.tipo)}</span>`:''}
-            <button class="btn-ban" title="No volver a mostrar" onclick='event.stopPropagation();ocultar(${JSON.stringify(it.titulo)},this)'><i class="bi bi-eye-slash"></i></button>
-          </div>
-          <div class="body">
-            <div class="t">${esc(it.titulo)}</div>
-            <div class="meta">${it.year?`<span>${esc(it.year)}</span>`:''}${it.generos&&it.generos.length?`<span>· ${esc(it.generos.slice(0,2).join(', '))}</span>`:''}</div>
-          </div>
-        </div>`).join('');
-    }
     renderPager(d);
   }catch(e){grid.innerHTML='<div class="state">Error de conexión.</div>';}
 }
@@ -810,18 +685,8 @@ async function descargarGaleriaDirecto(slug,btn){
   await _ejecutarDescargaGaleria(SITE,slug,btn,null);
 }
 
-async function ocultar(titulo,btn){
-  const card=btn.closest('.card');
-  try{
-    const r=await fetch('/api/descargas/blacklist',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({titulo})});
-    const d=await r.json();
-    if(d.success){card.remove();toast('Oculto: no volverá a aparecer');}
-    else{toast('Error: '+(d.error||'no se pudo ocultar'));}
-  }catch(e){toast('Error de conexión');}
-}
-
 function renderPager(d){
-  if(MODO==='hub'||d.pages<=1)return;
+  if(d.pages<=1)return;
   const p=document.getElementById('pager');
   p.innerHTML=`<button class="btn2" ${PAGE<=1?'disabled':''} onclick="buscar(${PAGE-1})"><i class="bi bi-chevron-left"></i></button>
     <span style="color:var(--muted2);font-size:13px">Página ${d.page} / ${d.pages} · ${d.total}${d.total_aproximado?'+':''} títulos${d.total_aproximado?' (filtro de páginas: conteo parcial)':''}</span>
@@ -830,11 +695,6 @@ function renderPager(d){
 
 async function abrirGaleria(slug){
   document.getElementById('modal').classList.add('show');
-  document.getElementById('mepsHead').style.display='none';
-  document.getElementById('meps').innerHTML='';
-  document.getElementById('mfootDefault').style.display='none';
-  document.getElementById('mfootGaleria').style.display='flex';
-  document.getElementById('mfootHint').style.display='none';
   document.getElementById('mgalMeta').innerHTML='<div class="spin"></div>';
   document.getElementById('mtitulo').textContent='Cargando…';
   document.getElementById('malt').textContent='';document.getElementById('mchips').innerHTML='';document.getElementById('msyn').textContent='';
@@ -900,299 +760,9 @@ function buscarPorChip(ns,valor){
   buscar(1);
 }
 
-async function abrir(slug){
-  document.getElementById('modal').classList.add('show');
-  document.getElementById('mepsHead').style.display='';
-  document.getElementById('mfootDefault').style.display='flex';
-  document.getElementById('mfootGaleria').style.display='none';
-  document.getElementById('mfootHint').style.display='';
-  document.getElementById('mgalMeta').innerHTML='';
-  document.getElementById('meps').innerHTML='<div class="spin"></div>';
-  document.getElementById('mtitulo').textContent='Cargando…';
-  document.getElementById('malt').textContent='';document.getElementById('mchips').innerHTML='';document.getElementById('msyn').textContent='';
-  SELECC=new Set();
-  try{
-    const r=await fetch('/api/descargas/detalle?slug='+encodeURIComponent(slug));
-    const d=await r.json();
-    if(d.error){toast('Error: '+d.error);cerrarModal();return;}
-    DETALLE=d;
-    document.getElementById('mtitulo').textContent=d.titulo;
-    document.getElementById('malt').textContent=d.titulo_alt||'';
-    document.getElementById('mposter').style.backgroundImage=`url('${d.poster}')`;
-    document.getElementById('mh').style.backgroundImage=`linear-gradient(180deg,rgba(24,24,24,.5),var(--surface)),url('${d.backdrop||d.poster}')`;
-    const chips=[];
-    if(d.tipo)chips.push(`<span class="chip">${esc(d.tipo)}</span>`);
-    if(d.year)chips.push(`<span class="chip">${esc(d.year)}</span>`);
-    (d.generos||[]).forEach(g=>chips.push(`<span class="chip g">${esc(g)}</span>`));
-    document.getElementById('mchips').innerHTML=chips.join('');
-    document.getElementById('msyn').textContent=d.sinopsis||'';
-    const eps=d.episodios&&d.episodios.length?d.episodios:[...Array(d.episodesCount||0)].map((_,i)=>i+1);
-    document.getElementById('meps').innerHTML=eps.map(n=>`<div class="ep" data-n="${n}" onclick="selEp(${n},this)">Ep ${n}</div>`).join('')||'<span style="color:var(--muted)">Sin episodios</span>';
-    actualizarBtn();
-  }catch(e){toast('Error de conexión');cerrarModal();}
-}
-function selEp(n,el){if(SELECC.has(n)){SELECC.delete(n);el.classList.remove('sel');}else{SELECC.add(n);el.classList.add('sel');}actualizarBtn();}
-function toggleTodos(){
-  const eps=[...document.querySelectorAll('#meps .ep')];
-  const all=eps.every(e=>e.classList.contains('sel'));
-  SELECC=new Set(); eps.forEach(e=>{if(all){e.classList.remove('sel');}else{e.classList.add('sel');SELECC.add(+e.dataset.n);}});
-  actualizarBtn();
-}
-function actualizarBtn(){const b=document.getElementById('mdlcap');b.disabled=SELECC.size===0;b.innerHTML=`<i class="bi bi-list-ol"></i> Descargar capítulos ${SELECC.size||''}`.trim();}
 function cerrarModal(){document.getElementById('modal').classList.remove('show');}
 
-async function encolar(modo){
-  if(!DETALLE)return;
-  if(modo==='capitulos'&&!SELECC.size){toast('Marcá al menos un episodio');return;}
-  const bc=document.getElementById('mdlcap'),bf=document.getElementById('mdlfull');
-  bc.disabled=bf.disabled=true;
-  const b=modo==='completa'?bf:bc;const o=b.innerHTML;b.innerHTML='<i class="bi bi-hourglass-split"></i> Encolando…';
-  try{
-    const r=await fetch('/api/descargas/encolar',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({site:'hentaila',slug:DETALLE.slug,modo,episodios:[...SELECC]})});
-    const d=await r.json();
-    if(d.success){toast(modo==='completa'?`✓ Descarga completa: ${d.encolados} episodio(s) + info`:`✓ ${d.encolados} episodio(s) en cola`);cerrarModal();}
-    else toast('Error: '+(d.error||'no se pudo'));
-  }catch(e){toast('Error de conexión');}
-  b.innerHTML=o;bf.disabled=false;actualizarBtn();
-}
-
-// ── Cola en tiempo real vía SSE (snapshot inicial + eventos job/removed) ───────
-let _sse=null, _jobsMap=new Map(), _colaOrden=[];
-
-function conectarSSE(){
-  if(_sse)_sse.close();
-  _sse=new EventSource('/api/descargas/eventos');
-  _sse.onmessage=(ev)=>{
-    try{
-      const msg=JSON.parse(ev.data);
-      if(msg.tipo==='snapshot'){
-        _colaOrden=(msg.data||[]).map(j=>j.id);
-        _jobsMap=new Map((msg.data||[]).map(j=>[j.id,j]));
-      }else if(msg.tipo==='job'){
-        if(!_jobsMap.has(msg.data.id))_colaOrden.unshift(msg.data.id);
-        _jobsMap.set(msg.data.id,msg.data);
-      }else if(msg.tipo==='removed'){
-        _jobsMap.delete(msg.data.id);
-        _colaOrden=_colaOrden.filter(id=>id!==msg.data.id);
-      }
-      renderCola();
-    }catch(e){}
-  };
-}
-
-function renderCola(){
-    const jobs=_colaOrden.map(id=>_jobsMap.get(id)).filter(Boolean);
-    document.getElementById('qcount').textContent=jobs.length?`${jobs.length}`:'';
-    document.getElementById('btnLimpiarCompletados').style.display=
-      jobs.some(j=>j.estado==='completado')?'inline-flex':'none';
-    const l=document.getElementById('qlist');
-    if(!jobs.length){l.innerHTML='<div class="state" style="padding:20px">Sin descargas todavía.</div>';return;}
-    l.innerHTML=jobs.map(j=>{
-      const acts=[];
-      if(['pendiente','descargando'].includes(j.estado))acts.push(`<button class="jbtn dgr" onclick="jobAccion('${j.id}','cancelar')">Cancelar</button>`);
-      if(['error','cancelado'].includes(j.estado))acts.push(`<button class="jbtn" onclick="jobAccion('${j.id}','reintentar')">Reintentar</button>`);
-      if(['completado','error','cancelado'].includes(j.estado))acts.push(`<button class="jbtn dgr" onclick="jobAccion('${j.id}','quitar')">Quitar</button>`);
-      return `<div class="job">
-        <div class="jt"><span>${esc(j.titulo)} · Ep ${j.numero}</span></div>
-        <div class="jsub"><span class="st ${j.estado}">${j.estado}</span>${j.servidor?`<span>${esc(j.servidor)}</span>`:''}${j.velocidad&&j.estado==='descargando'?`<span>${esc(j.velocidad)}</span>`:''}${j.error?`<span style="color:#ef7b78;display:block;white-space:normal;word-break:break-word" title="${esc(j.error)}">⚠ ${esc(j.error)}</span>`:''}</div>
-        <div class="bar"><i style="width:${j.progreso||0}%;background:${j.estado==='completado'?'var(--success)':j.estado==='error'?'var(--danger)':'var(--accent)'}"></i></div>
-        ${acts.length?`<div class="jact">${acts.join('')}</div>`:''}
-      </div>`;
-    }).join('');
-}
-async function jobAccion(id,acc){
-  await fetch('/api/descargas/cola/accion',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,accion:acc})});
-}
-async function limpiarCompletados(){
-  const btn=document.getElementById('btnLimpiarCompletados');
-  btn.disabled=true;
-  try{
-    const r=await fetch('/api/descargas/cola/limpiar',{method:'POST'});
-    const d=await r.json();
-    toast(d.success?`✓ ${d.quitados} completados quitados de la cola`:'Error al limpiar');
-  }catch(e){toast('Error de conexión');}
-  btn.disabled=false;
-}
-async function regenerarPreviews(btn){
-  const o=btn.innerHTML;btn.disabled=true;btn.innerHTML='<i class="bi bi-hourglass-split"></i> Generando…';
-  try{
-    const r=await fetch('/api/descargas/previews/generar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({forzar:true})});const d=await r.json();
-    if(d.success){const s=d.stats;toast(`✓ ${s.generadas} regeneradas desde portada, ${s.errores} fallos`);}
-    else toast('Error: '+(d.error||''));
-  }catch(e){toast('Error de conexión');}
-  btn.disabled=false;btn.innerHTML=o;
-}
-
-// ── Novedades: episodios nuevos de series que ya tenemos ──────────────────────
-async function cargarNovedades(){
-  try{
-    const r=await fetch('/api/descargas/novedades');
-    const d=await r.json();
-    const novedades=d.novedades||[];
-    if(!novedades.length)return;
-    document.getElementById('novedadesTitulo').textContent=
-      `${novedades.length} serie${novedades.length!==1?'s':''} tuya${novedades.length!==1?'s tienen':' tiene'} episodios nuevos`;
-    document.getElementById('novedadesList').innerHTML=novedades.map((n,i)=>`
-      <div class="novedad-item" id="nov-${i}">
-        <span class="nom">${esc(n.nombre)}</span>
-        <span class="eps">tenías ${n.episodios_tenidos} · hay ${n.episodio_nuevo}</span>
-        <button onclick="descargarNovedad(${i})"><i class="bi bi-download"></i> Descargar ${n.episodios_faltantes.length>1?`(${n.episodios_faltantes.length})`:''}</button>
-      </div>`).join('');
-    window._novedades=novedades;
-    document.getElementById('novedadesBanner').style.display='block';
-  }catch(e){}
-}
-
-async function descargarNovedad(i){
-  const n=window._novedades[i];
-  const item=document.getElementById(`nov-${i}`);
-  const btn=item.querySelector('button');
-  btn.disabled=true;btn.innerHTML='<i class="bi bi-hourglass-split"></i> Encolando…';
-  try{
-    const r=await fetch('/api/descargas/encolar',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({site:'hentaila',slug:n.slug,modo:'capitulos',episodios:n.episodios_faltantes})});
-    const d=await r.json();
-    if(d.success){
-      toast(`✓ ${d.encolados} episodio(s) de "${n.nombre}" en cola`);
-      item.style.opacity='.5';
-      btn.innerHTML='<i class="bi bi-check2"></i> En cola';
-    }else{
-      toast('Error: '+(d.error||'no se pudo'));
-      btn.disabled=false;btn.innerHTML='<i class="bi bi-download"></i> Reintentar';
-    }
-  }catch(e){
-    toast('Error de conexión');
-    btn.disabled=false;btn.innerHTML='<i class="bi bi-download"></i> Reintentar';
-  }
-}
-
-// ── Agregar video: subir archivo o descargar por URL ───────────────────────────
-let avCarpetas=[];
-
-async function avCambiarLib(){
-  const lib=document.getElementById('avLib').value;
-  document.getElementById('avSeccion').style.display=lib==='hentai'?'':'none';
-  document.getElementById('avAnimacion').style.display='none';
-  document.getElementById('avCarpetaNueva').style.display='none';
-  const sel=document.getElementById('avCarpeta');
-  sel.innerHTML='<option value="">Cargando…</option>';
-  try{
-    const r=await fetch(`/api/video/agregar/carpetas?lib=${lib}`);
-    const d=await r.json();
-    avCarpetas=d.carpetas||[];
-  }catch(e){avCarpetas=[];}
-  sel.innerHTML='<option value="__nueva__">+ Carpeta nueva…</option>'+
-    avCarpetas.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
-  avOnCarpetaChange();
-}
-function avOnCarpetaChange(){
-  const lib=document.getElementById('avLib').value;
-  const esNueva=document.getElementById('avCarpeta').value==='__nueva__';
-  document.getElementById('avCarpetaNueva').style.display=esNueva?'':'none';
-  document.getElementById('avAnimacion').style.display=(lib==='animacion'&&!esNueva)?'':'none';
-}
-function avNombreCarpeta(){
-  const sel=document.getElementById('avCarpeta').value;
-  if(sel==='__nueva__')return document.getElementById('avCarpetaNueva').value.trim();
-  return sel;
-}
-function avDestinoBody(){
-  const lib=document.getElementById('avLib').value;
-  const carpeta=avNombreCarpeta();
-  if(!carpeta){toast('Elegí o escribí una carpeta');return null;}
-  const body={lib,carpeta};
-  if(lib==='hentai')body.seccion=document.getElementById('avSeccion').value;
-  if(lib==='animacion'){
-    const anim=document.getElementById('avAnimacion').value.trim();
-    if(anim)body.animacion=anim;
-  }
-  return body;
-}
-function avArchivoElegido(){
-  const f=document.getElementById('avArchivo').files[0];
-  document.getElementById('avArchivoNombre').textContent=f?f.name:'';
-  document.getElementById('avBtnSubir').disabled=!f;
-}
-async function avSubir(){
-  const f=document.getElementById('avArchivo').files[0];
-  if(!f)return;
-  const destino=avDestinoBody();
-  if(!destino)return;
-  const btn=document.getElementById('avBtnSubir');
-  btn.disabled=true;btn.innerHTML='<i class="bi bi-hourglass-split"></i> Subiendo…';
-  const fd=new FormData();
-  fd.append('video',f);
-  Object.entries(destino).forEach(([k,v])=>fd.append(k,v));
-  try{
-    const r=await fetch('/api/video/agregar/subir',{method:'POST',body:fd});
-    const d=await r.json();
-    if(d.id){
-      toast('✓ Subida en cola');
-      document.getElementById('avArchivo').value='';
-      document.getElementById('avArchivoNombre').textContent='';
-    }else toast('Error: '+(d.error||'no se pudo'));
-  }catch(e){toast('Error de conexión');}
-  btn.disabled=false;btn.innerHTML='<i class="bi bi-cloud-upload"></i> Subir';
-}
-async function avDescargarUrl(){
-  const url=document.getElementById('avUrl').value.trim();
-  if(!url){toast('Pegá una URL primero');return;}
-  const destino=avDestinoBody();
-  if(!destino)return;
-  destino.url=url;
-  try{
-    const r=await fetch('/api/video/agregar/url',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(destino)});
-    const d=await r.json();
-    if(d.id){toast('✓ Descarga en cola');document.getElementById('avUrl').value='';}
-    else toast('Error: '+(d.error||'no se pudo'));
-  }catch(e){toast('Error de conexión');}
-}
-
-let _avSse=null,_avJobsMap=new Map(),_avOrden=[];
-function avConectarSSE(){
-  if(_avSse)_avSse.close();
-  _avSse=new EventSource('/api/video/agregar/eventos');
-  _avSse.onmessage=(ev)=>{
-    try{
-      const msg=JSON.parse(ev.data);
-      if(msg.tipo==='snapshot'){
-        _avOrden=(msg.data||[]).map(j=>j.id);
-        _avJobsMap=new Map((msg.data||[]).map(j=>[j.id,j]));
-      }else if(msg.tipo==='job'){
-        if(!_avJobsMap.has(msg.data.id))_avOrden.unshift(msg.data.id);
-        _avJobsMap.set(msg.data.id,msg.data);
-      }
-      avRenderCola();
-    }catch(e){}
-  };
-}
-function avRenderCola(){
-  const jobs=_avOrden.map(id=>_avJobsMap.get(id)).filter(Boolean);
-  const l=document.getElementById('avQlist');
-  if(!jobs.length){l.innerHTML='';return;}
-  l.innerHTML=jobs.map(j=>{
-    const nombre=j.nombre_final||j.url||j.carpeta;
-    const acts=['pendiente','descargando'].includes(j.estado)
-      ?`<div class="jact"><button class="jbtn dgr" onclick="avCancelar('${j.id}')">Cancelar</button></div>`:'';
-    return `<div class="job">
-      <div class="jt"><span>${esc(nombre)} · ${esc(j.lib)}/${esc(j.carpeta)}</span></div>
-      <div class="jsub"><span class="st ${j.estado}">${j.estado}</span>${j.velocidad&&j.estado==='descargando'?`<span>${esc(j.velocidad)}</span>`:''}${j.error?`<span style="color:#ef7b78;display:block;white-space:normal;word-break:break-word" title="${esc(j.error)}">⚠ ${esc(j.error)}</span>`:''}</div>
-      <div class="bar"><i style="width:${j.progreso||0}%;background:${j.estado==='completado'?'var(--success)':j.estado==='error'?'var(--danger)':'var(--accent)'}"></i></div>
-      ${acts}
-    </div>`;
-  }).join('');
-}
-async function avCancelar(id){
-  await fetch('/api/video/agregar/cancelar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
-}
-
-cargarGeneros();
-buscar(1);
-conectarSSE();
-cargarNovedades();
-avCambiarLib();
-avConectarSSE();
+cambiarSite();
 </script>
 <script>
 // PWA: el service worker cachea el shell y las miniaturas ya vistas.

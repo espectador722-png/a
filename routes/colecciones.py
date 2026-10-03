@@ -1,20 +1,11 @@
-# routes/colecciones.py — carpetas virtuales (colecciones), generalizadas
-# a los 5 tipos de contenido (antes solo existían para manga).
+# routes/colecciones.py — carpetas virtuales (colecciones) de manga.
 #
-# Una colección es una simple lista de item_ids guardada en JSON — nunca
-# mueve archivos, solo agrupa referencias. Cada tipo de contenido:
-#   1. Define su propio esquema de item_id (ver _ITEM_ID_DOC más abajo).
-#   2. Registra un resolver con register_resolver(tipo, fn) al importarse,
-#      que sabe convertir una lista de item_ids en ítems mostrables (con
-#      preview, nombre, etc). Este módulo nunca importa manga.py/hentai.py/
-#      etc — son ELLOS los que importan este módulo y se registran acá,
-#      evitando import circular.
-#
-# _ITEM_ID_DOC (formato de item_id por tipo, decidido por cada blueprint):
-#   manga / hentai / xxx : nombre plano (igual que el manga.py original)
-#   animacion            : "artista::animacion"
-#   galeria              : "artista__album" o "artista" si es el álbum general
-#                          (mismo esquema que _fav_key en routes/galeria.py)
+# Una colección es una simple lista de item_ids (nombres de manga) guardada en
+# JSON — nunca mueve archivos, solo agrupa referencias. manga.py registra un
+# resolver con register_resolver("manga", fn) al importarse, que convierte una
+# lista de item_ids en ítems mostrables (con preview, nombre, etc). Este módulo
+# nunca importa manga.py — es manga.py el que importa este módulo y se registra
+# acá, evitando import circular.
 import os
 import uuid
 import logging
@@ -29,7 +20,7 @@ from routes.helpers import get_cached, invalidate_cache, load_json, save_json
 logger = logging.getLogger(__name__)
 colecciones_bp = Blueprint("colecciones", __name__)
 
-TIPOS_VALIDOS = {"manga", "hentai", "animacion", "xxx", "galeria"}
+TIPOS_VALIDOS = {"manga"}
 
 # tipo -> callable(list[str]) -> dict[item_id.lower(), dict-con-"id"]
 _RESOLVERS: dict[str, Callable[[list[str]], dict]] = {}
@@ -53,13 +44,7 @@ def _resolve(tipo: str, item_ids: list[str]) -> dict:
 # ── Persistencia ──────────────────────────────────────────────────────────────
 
 def _root_dir(tipo: str) -> str:
-    return {
-        "manga":     Config.BASE_DIR,
-        "hentai":    Config.HENTAI_DIR,
-        "animacion": Config.ANIMACION_DIR,
-        "xxx":       Config.XXX_DIR,
-        "galeria":   Config.GALERIA_DIR,
-    }[tipo]
+    return Config.BASE_DIR
 
 
 def _colecciones_path(tipo: str) -> str:

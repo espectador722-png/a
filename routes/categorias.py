@@ -1,13 +1,13 @@
-# routes/categorias.py — categorías base editables (manga/hentai)
+# routes/categorias.py — categorías base editables de manga
 #
 # Las categorías fijas (Favoritos/Largos/Cortos) dejan de estar hardcodeadas:
 # se guardan en categorias.json (uno por tipo) y se puede renombrar (solo la
 # etiqueta, nunca la carpeta física), agregar (crea una carpeta real nueva) o
 # eliminar (solo si está vacía y no es una de las originales).
 #
-# Otros módulos (manga.py, hentai.py) llaman a get_section_dirs(tipo) para
-# obtener {id: (content_dir, preview_dir)} y se suscriben con on_change(tipo, cb)
-# para refrescar sus propias estructuras cuando algo cambia acá.
+# manga.py llama a get_section_dirs(tipo) para obtener
+# {id: (content_dir, preview_dir)} y se suscribe con on_change(tipo, cb) para
+# refrescar sus propias estructuras cuando algo cambia acá.
 import os
 import logging
 from flask import Blueprint, jsonify, request
@@ -18,7 +18,7 @@ from routes.helpers import load_json, save_json, sanitize_folder_name
 logger = logging.getLogger(__name__)
 categorias_bp = Blueprint("categorias", __name__)
 
-TIPOS_VALIDOS = {"manga", "hentai"}
+TIPOS_VALIDOS = {"manga"}
 
 _LISTENERS: dict[str, list] = {}
 
@@ -40,7 +40,7 @@ def _notify(tipo: str) -> None:
 # ── Persistencia ──────────────────────────────────────────────────────────────
 
 def _root_dir(tipo: str) -> str:
-    return Config.BASE_DIR if tipo == "manga" else Config.HENTAI_DIR
+    return Config.BASE_DIR
 
 
 def _categorias_path(tipo: str) -> str:
@@ -52,18 +52,11 @@ def _default_categorias(tipo: str) -> list[dict]:
     (no se pueden eliminar — solo renombrar) para no romper la lógica que las
     referencia por id en otros módulos (favoritos/largos como destino de
     fallback, clasificación de descargas, etc)."""
-    if tipo == "manga":
-        datos = [
-            ("favoritos", "Favoritos", Config.FAVORITOS_DIR, Config.PREVIEW_FAVORITOS_DIR),
-            ("largos",    "Largos",    Config.LARGOS_DIR,    Config.PREVIEW_LARGOS_DIR),
-            ("cortos",    "Cortos",    Config.CORTOS_DIR,    Config.PREVIEW_CORTOS_DIR),
-        ]
-    else:
-        datos = [
-            ("favoritos", "Favoritos", Config.HENTAI_FAVORITOS_DIR, Config.PREVIEW_HENTAI_FAVORITOS_DIR),
-            ("largos",    "Largos",    Config.HENTAI_LARGOS_DIR,    Config.PREVIEW_HENTAI_LARGOS_DIR),
-            ("cortos",    "Cortos",    Config.HENTAI_CORTOS_DIR,    Config.PREVIEW_HENTAI_CORTOS_DIR),
-        ]
+    datos = [
+        ("favoritos", "Favoritos", Config.FAVORITOS_DIR, Config.PREVIEW_FAVORITOS_DIR),
+        ("largos",    "Largos",    Config.LARGOS_DIR,    Config.PREVIEW_LARGOS_DIR),
+        ("cortos",    "Cortos",    Config.CORTOS_DIR,    Config.PREVIEW_CORTOS_DIR),
+    ]
     return [
         {"id": cid, "label": label, "content_dir": cdir, "preview_dir": pdir, "protegida": True}
         for cid, label, cdir, pdir in datos
@@ -85,7 +78,7 @@ def _save(tipo: str, cats: list[dict]) -> bool:
     return save_json(_categorias_path(tipo), {"categorias": cats})
 
 
-# ── API interna (usada por manga.py / hentai.py) ──────────────────────────────
+# ── API interna (usada por manga.py) ────────────────────────────────────────────
 
 def list_categorias(tipo: str) -> list[dict]:
     return _load(tipo)
@@ -93,7 +86,7 @@ def list_categorias(tipo: str) -> list[dict]:
 
 def get_section_dirs(tipo: str) -> dict[str, tuple[str, str]]:
     """{id: (content_dir, preview_dir)} — reemplaza los diccionarios hardcodeados
-    MANGA_SECTION_DIRS / HENTAI_CONTENT_DIRS+HENTAI_PREVIEW_DIRS."""
+    MANGA_SECTION_DIRS."""
     return {c["id"]: (c["content_dir"], c["preview_dir"]) for c in _load(tipo)}
 
 

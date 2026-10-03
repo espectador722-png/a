@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-rol="{{ g.usuario.rol }}" data-usuario="{{ g.usuario.usuario }}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -55,13 +55,14 @@ a{color:inherit;text-decoration:none}
 .par.resuelto{opacity:.35;pointer-events:none}
 .no-dup{text-align:center;padding:60px 0;color:var(--muted2)}
 </style>
+<link rel="stylesheet" href="/static/css/sesion.css">
+<script src="/static/js/sesion.js"></script>
 </head>
 <body>
 
 <div class="top-nav">
   <div class="brand"><div class="brand-icon"><i class="bi bi-images"></i></div><span>Mangas duplicados</span></div>
   <div class="nav-spacer"></div>
-  <a href="/video-duplicados" class="nav-link-btn"><i class="bi bi-camera-reels"></i> Duplicados de video</a>
   <a href="/manga" class="nav-link-btn"><i class="bi bi-arrow-left"></i> Volver</a>
 </div>
 

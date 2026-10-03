@@ -5,8 +5,8 @@
 # carpetas eso es lento y obliga a invalidar caché a mano desde ocho
 # archivos distintos.
 #
-# Este módulo mantiene una tabla `items` con TODO el contenido (manga,
-# hentai, animación, xxx, galería) y la refresca en un hilo de fondo.
+# Este módulo mantiene una tabla `items` con todos los mangas y la refresca
+# en un hilo de fondo.
 # El escaneo es incremental: solo vuelve a leer metadata o a contar
 # archivos de las carpetas cuyo mtime cambió, así que un rescan completo
 # sobre una biblioteca sin cambios cuesta un scandir por directorio raíz.
@@ -30,7 +30,7 @@ from routes.helpers import load_json
 
 logger = logging.getLogger(__name__)
 
-TIPOS = ("manga", "hentai", "animacion", "xxx", "galeria")
+TIPOS = ("manga",)
 
 # Estado observable del escáner (lo expone /api/indice/estado)
 estado: dict = {
@@ -72,7 +72,7 @@ _SCHEMA = """
 CREATE TABLE IF NOT EXISTS items (
     clave        TEXT PRIMARY KEY,   -- tipo|seccion|nombre
     tipo         TEXT NOT NULL,
-    seccion      TEXT NOT NULL,      -- sección (manga/hentai), artista (anim/galería), categoría (xxx)
+    seccion      TEXT NOT NULL,      -- sección de manga (favoritos, largos, ...)
     nombre       TEXT NOT NULL,
     nombre_norm  TEXT NOT NULL DEFAULT '',
     item_id      TEXT NOT NULL DEFAULT '',   -- id que usan colecciones
@@ -310,223 +310,8 @@ def _scan_manga() -> Iterator[Candidato]:
             yield Candidato("manga", seccion, nombre, ruta, mt, mmt, construir)
 
 
-def _scan_hentai() -> Iterator[Candidato]:
-    for seccion, (base_dir, preview_dir) in categorias.get_section_dirs("hentai").items():
-        if not os.path.isdir(preview_dir):
-            continue
-        carpetas = {e.name.lower(): e.path for e in _subdirs(base_dir, False)}
-        try:
-            previews = list(os.scandir(preview_dir))
-        except OSError:
-            continue
-
-        for pv in previews:
-            if not pv.name.lower().endswith(Config.PREVIEW_EXTENSIONS):
-                continue
-            nombre = os.path.splitext(pv.name)[0]
-            ruta = carpetas.get(nombre.lower(), "")
-            mt, ct = _stat_dir(ruta) if ruta else (_mtime(pv.path), 0.0)
-
-            def construir(nombre=nombre, seccion=seccion, ruta=ruta,
-                          archivo=pv.name, mt=mt, ct=ct) -> dict:
-                nvid, tam = _contar_archivos(ruta, Config.VIDEO_EXTENSIONS) if ruta else (0, 0)
-                return {
-                    "clave":      f"hentai|{seccion}|{nombre}",
-                    "tipo":       "hentai",
-                    "seccion":    seccion,
-                    "nombre":     nombre,
-                    "item_id":    nombre.lower(),
-                    "ruta":       ruta,
-                    "preview":    f"/preview_hentai/{seccion}/{archivo}?v={int(mt)}",
-                    "n_items":    nvid,
-                    "tamano":     tam,
-                    "mtime":      mt,
-                    "creado":     ct or mt,
-                    "extra":      "{}",
-                }
-
-            yield Candidato("hentai", seccion, nombre, ruta, mt, 0.0, construir)
-
-
-def _scan_animacion() -> Iterator[Candidato]:
-    raiz = Config.ANIMACION_DIR
-    if not os.path.isdir(raiz):
-        return
-    previews_folder = os.path.basename(Config.PREVIEW_ANIMACION_DIR).lower()
-
-    # No todas las animaciones tienen preview generada. Guardar la URL a ciegas
-    # deja imágenes rotas en la grilla, así que verificamos y caemos a la
-    # imagen de portada del artista (la misma que usa /api/animaciones/artistas).
-    portadas: dict[str, str] = {}
-
-    def _portada_artista(artista: str, ruta_artista: str) -> str:
-        if artista not in portadas:
-            img = _primera_imagen(ruta_artista)
-            portadas[artista] = f"/preview_artista/{artista}/{img}" if img else ""
-        return portadas[artista]
-
-    for art in _subdirs(raiz):
-        if art.name.lower() == previews_folder:
-            continue
-        for anim in _subdirs(art.path, saltar_guion_bajo=False):
-            mt, ct = _stat_dir(anim.path)
-
-            def construir(artista=art.name, nombre=anim.name, ruta_artista=art.path,
-                          ruta=anim.path, mt=mt, ct=ct) -> dict:
-                nvid, tam = _contar_archivos(ruta, Config.VIDEO_EXTENSIONS)
-                archivo_prev = f"{artista}_{nombre}.jpg"
-                if os.path.exists(os.path.join(Config.PREVIEW_ANIMACION_DIR, archivo_prev)):
-                    preview = f"/preview_animacion/{archivo_prev}"
-                else:
-                    preview = _portada_artista(artista, ruta_artista)
-                return {
-                    "clave":      f"animacion|{artista}|{nombre}",
-                    "tipo":       "animacion",
-                    "seccion":    artista,
-                    "nombre":     nombre,
-                    "item_id":    f"{artista}::{nombre}".lower(),
-                    "ruta":       ruta,
-                    "preview":    preview,
-                    "artistas":   artista,
-                    "n_items":    nvid,
-                    "tamano":     tam,
-                    "mtime":      mt,
-                    "creado":     ct or mt,
-                    "extra":      json.dumps({"artista": artista}, ensure_ascii=False),
-                }
-
-            yield Candidato("animacion", art.name, anim.name, anim.path, mt, 0.0, construir)
-
-
-def _scan_xxx() -> Iterator[Candidato]:
-    raiz = Config.XXX_DIR
-    if not os.path.isdir(raiz):
-        return
-    excluidas = {"previews", "_favoritos"}
-
-    for cat in _subdirs(raiz, saltar_guion_bajo=False):
-        if cat.name.lower() in excluidas:
-            continue
-        try:
-            archivos = [e for e in os.scandir(cat.path)
-                        if e.name.lower().endswith(Config.VIDEO_EXTENSIONS)]
-        except OSError:
-            continue
-
-        for vid in archivos:
-            nombre = os.path.splitext(vid.name)[0]
-            try:
-                st = vid.stat()
-                mt, ct, tam = st.st_mtime, st.st_ctime, st.st_size
-            except OSError:
-                mt = ct = tam = 0
-
-            def construir(categoria=cat.name, nombre=nombre, archivo=vid.name,
-                          ruta=vid.path, mt=mt, ct=ct, tam=tam) -> dict:
-                prev = os.path.join(Config.PREVIEW_XXX_DIR, f"{nombre}.jpg")
-                return {
-                    "clave":      f"xxx|{categoria}|{nombre}",
-                    "tipo":       "xxx",
-                    "seccion":    categoria,
-                    "nombre":     nombre,
-                    "item_id":    nombre.lower(),
-                    "ruta":       ruta,
-                    "preview":    (f"/preview_xxx/{nombre}.jpg"
-                                   if os.path.exists(prev)
-                                   else "/static/default_video_preview.jpg"),
-                    "n_items":    1,
-                    "tamano":     tam,
-                    "mtime":      mt,
-                    "creado":     ct or mt,
-                    "extra":      json.dumps({"video": archivo, "categoria": categoria},
-                                             ensure_ascii=False),
-                }
-
-            yield Candidato("xxx", cat.name, nombre, vid.path, mt, 0.0, construir)
-
-
-def _scan_galeria() -> Iterator[Candidato]:
-    raiz = Config.GALERIA_DIR
-    if not os.path.isdir(raiz):
-        return
-
-    for art in _subdirs(raiz):
-        # Álbum "_General": imágenes sueltas en la raíz del artista
-        mt_art, ct_art = _stat_dir(art.path)
-
-        def construir_general(artista=art.name, ruta=art.path,
-                              mt=mt_art, ct=ct_art) -> dict:
-            n, tam = _contar_archivos(ruta, Config.IMAGE_EXTENSIONS)
-            primera = _primera_imagen(ruta)
-            return {
-                "clave":      f"galeria|{artista}|_General",
-                "tipo":       "galeria",
-                "seccion":    artista,
-                "nombre":     "_General",
-                # Convención de galeria.py (_fav_key): el álbum "_General" se
-                # identifica solo con el artista, sin sufijo.
-                "item_id":    artista.lower(),
-                "ruta":       ruta,
-                "preview":    f"/galeria_img/{artista}/{primera}" if primera else "",
-                "artistas":   artista,
-                "titulo":     "General",
-                "n_items":    n,
-                "tamano":     tam,
-                "mtime":      mt,
-                "creado":     ct or mt,
-                "extra":      json.dumps({"artista": artista, "label": "General"},
-                                         ensure_ascii=False),
-            }
-
-        yield Candidato("galeria", art.name, "_General", art.path,
-                        mt_art, 0.0, construir_general)
-
-        for alb in _subdirs(art.path):
-            mt, ct = _stat_dir(alb.path)
-
-            def construir(artista=art.name, nombre=alb.name,
-                          ruta=alb.path, mt=mt, ct=ct) -> dict:
-                n, tam = _contar_archivos(ruta, Config.IMAGE_EXTENSIONS)
-                primera = _primera_imagen(ruta)
-                return {
-                    "clave":      f"galeria|{artista}|{nombre}",
-                    "tipo":       "galeria",
-                    "seccion":    artista,
-                    "nombre":     nombre,
-                    "item_id":    f"{artista}__{nombre}".lower(),
-                    "ruta":       ruta,
-                    "preview":    (f"/galeria_img/{artista}/{nombre}/{primera}"
-                                   if primera else ""),
-                    "artistas":   artista,
-                    "n_items":    n,
-                    "tamano":     tam,
-                    "mtime":      mt,
-                    "creado":     ct or mt,
-                    "extra":      json.dumps({"artista": artista, "label": nombre},
-                                             ensure_ascii=False),
-                }
-
-            yield Candidato("galeria", art.name, alb.name, alb.path, mt, 0.0, construir)
-
-
-def _primera_imagen(path: str) -> str:
-    try:
-        nombres = sorted(
-            (e.name for e in os.scandir(path)
-             if e.is_file() and e.name.lower().endswith(Config.IMAGE_EXTENSIONS)),
-            key=str.lower,
-        )
-        return nombres[0] if nombres else ""
-    except OSError:
-        return ""
-
-
 _SCANNERS: dict[str, Callable[[], Iterator[Candidato]]] = {
-    "manga":     _scan_manga,
-    "hentai":    _scan_hentai,
-    "animacion": _scan_animacion,
-    "xxx":       _scan_xxx,
-    "galeria":   _scan_galeria,
+    "manga": _scan_manga,
 }
 
 
@@ -587,10 +372,6 @@ def escanear(tipos: tuple[str, ...] = TIPOS) -> dict:
                         fila = cand.construir()
                     except Exception as e:
                         logger.warning("No se pudo indexar %s: %s", cand.clave, e)
-                        continue
-                    # Un álbum sin imágenes no es un ítem: galeria.py tampoco lo
-                    # muestra (el "_General" solo existe si hay sueltas en la raíz).
-                    if cand.tipo == "galeria" and fila.get("n_items", 0) <= 0:
                         continue
                     fila["nombre_norm"] = norm(fila.get("nombre", ""))
                     fila["visto_scan"] = gen
@@ -695,14 +476,10 @@ def iniciar() -> None:
 
 # Cuando la app mueve/borra/etiqueta algo llama a invalidate_cache(). Nos
 # colgamos de ahí para reindexar sin esperar al ciclo de 5 min, en vez de
-# tocar los ocho blueprints. El debounce evita rescanear en cada tag guardado.
+# tocar cada ruta. El debounce evita rescanear en cada tag guardado.
 _PREFIJO_A_TIPO = (
     ("manga",       "manga"),
     ("all_tags",    "manga"),
-    ("hentai",      "hentai"),
-    ("animacion",   "animacion"),
-    ("xxx",         "xxx"),
-    ("galeria",     "galeria"),
 )
 _DEBOUNCE = 15.0
 _timer: threading.Timer | None = None

@@ -1,13 +1,20 @@
 # config.py — fuente única de verdad para toda la configuración
+#
+# Las rutas se pueden cambiar con variables de entorno (ver README.md) sin
+# tocar este archivo; los valores por defecto son los de la PC original.
 import os
 import logging
 
 logger = logging.getLogger(__name__)
 
 
+def _env(nombre: str, defecto: str) -> str:
+    return os.environ.get(nombre) or defecto
+
+
 class Config:
     # ── Mangas ────────────────────────────────────────────────────────────────
-    BASE_DIR = "D:/General/Imagenes/Mangas"
+    BASE_DIR = _env("MANGA_DIR", "D:/General/Imagenes/Mangas")
     LARGOS_DIR = os.path.join(BASE_DIR, "Mangas Largos")
     CORTOS_DIR = os.path.join(BASE_DIR, "Mangas Cortos")
     FAVORITOS_DIR = os.path.join(BASE_DIR, "Favoritos")
@@ -34,144 +41,56 @@ class Config:
         "cortos":    PREVIEW_CORTOS_DIR,
     }
 
-    # ── Hentai ────────────────────────────────────────────────────────────────
-    HENTAI_DIR = "D:/General/Hentai"
-    HENTAI_LARGOS_DIR = os.path.join(HENTAI_DIR, "Hentai Largos")
-    HENTAI_CORTOS_DIR = os.path.join(HENTAI_DIR, "Hentai Cortos")
-    HENTAI_FAVORITOS_DIR = os.path.join(HENTAI_DIR, "Hentai Favoritos")
-    PREVIEW_HENTAI_LARGOS_DIR = os.path.join(HENTAI_DIR, "Preview Hentai Largos")
-    PREVIEW_HENTAI_CORTOS_DIR = os.path.join(HENTAI_DIR, "Preview Hentai Cortos")
-    PREVIEW_HENTAI_FAVORITOS_DIR = os.path.join(HENTAI_DIR, "Preview Hentai Favoritos")
-    CONFLICTO_HENTAI_DIR = os.path.join(HENTAI_DIR, "Conflicto")
-    UMBRAL_HENTAI_CORTOS = 2  # < 2 videos = hentai corto
-    SAMPLE_POINTS = 5
+    # ── Datos de la app (usuarios, índice, historial) ─────────────────────────
+    DATA_DIR = _env("DATA_DIR", "D:/General")
+    MANGA_SORTEO_HISTORIAL_FILE = os.path.join(DATA_DIR, "manga_sorteo_historial.json")
 
-    HENTAI_PREVIEW_DIRS: dict = {
-        "largos":    os.path.join(HENTAI_DIR, "Preview Hentai Largos"),
-        "cortos":    os.path.join(HENTAI_DIR, "Preview Hentai Cortos"),
-        "favoritos": os.path.join(HENTAI_DIR, "Preview Hentai Favoritos"),
-    }
-    HENTAI_CONTENT_DIRS: dict = {
-        "largos":    os.path.join(HENTAI_DIR, "Hentai Largos"),
-        "cortos":    os.path.join(HENTAI_DIR, "Hentai Cortos"),
-        "favoritos": os.path.join(HENTAI_DIR, "Hentai Favoritos"),
-    }
-
-    # ── Animaciones ───────────────────────────────────────────────────────────
-    ANIMACION_DIR = "D:/General/Animacion"
-    PREVIEW_ANIMACION_DIR = os.path.join(ANIMACION_DIR, "Previews Animaciones")
-
-    # ── Galería +18 ───────────────────────────────────────────────────────────
-    GALERIA_DIR = "D:/General/Imagenes/Imagenes +18"
-    # Índice JSON de favoritos de galería (reemplaza symlinks — compatible con Windows)
-    GALERIA_FAVORITOS_INDEX = os.path.join(GALERIA_DIR, "_Favoritos", "index.json")
-
-    # ── Videos XXX ────────────────────────────────────────────────────────────
-    XXX_DIR = "D:/General/xxx"
-    PREVIEW_XXX_DIR = os.path.join(XXX_DIR, "Previews")
-    XXX_FAVORITOS_DIR = os.path.join(XXX_DIR, "_Favoritos")
-
-    # ── Descargas de Hentai (scraper + cola) ──────────────────────────────────
-    HENTAI_DESCARGAS_TEMP  = os.path.join(HENTAI_DIR, "_Descargas_temp")
-    HENTAI_DESCARGAS_STATE = os.path.join(HENTAI_DIR, "descargas.json")
-    # Ruta a ffmpeg (winget no siempre lo deja en PATH). Se autodetecta si es None.
-    FFMPEG_LOCATION = (
-        r"C:\Users\Usuario\AppData\Local\Microsoft\WinGet\Packages"
-        r"\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe"
-        r"\ffmpeg-8.1.2-full_build\bin"
-    )
-    # Destino de los videos exportados con subtítulos (routes/video_export.py)
-    EXPORT_DIR = os.path.join(os.path.expanduser("~"), "Desktop")
-    # Sitios soportados por el scraper
-    SITIOS_HENTAI = {
-        "hentaila": {
-            "base":  "https://hentaila.com",
-            "cdn":   "https://cdn.hentaila.com",
-            "label": "HentaiLA",
-        },
-        "verhentai": {
-            "base":  "https://www2.verhentai.top",
-            "label": "VerHentai (best-effort)",
-        },
-    }
-    DESCARGAS_WORKERS = 1  # hilos de descarga concurrentes
-
-    # ── Progreso de reproducción (hentai/animaciones/xxx) ─────────────────────
-    MEDIA_PROGRESS_FILE = "D:/General/media_progress.json"
-
-    # ── Historial de sorteo de manga (mangas ya aprobados/conservados) ────────
-    MANGA_SORTEO_HISTORIAL_FILE = "D:/General/manga_sorteo_historial.json"
-
-    # ── Bakemono (favoritos guardados por el usuario) ─────────────────────────
-    # bakemono.app indexa posts de Patreon/Fanbox; algunos posts alojan el
-    # archivo real en su propio CDN (/data/...), otros solo enlazan a un host
-    # externo (Drive, Mega, etc.) puesto por el creador en la descripción.
-    BAKEMONO_DIR = "D:/General/Bakemono"
-    BAKEMONO_SETTINGS_FILE = os.path.join(BAKEMONO_DIR, "settings.json")
-    BAKEMONO_STATE_FILE = os.path.join(BAKEMONO_DIR, "jobs.json")
-
-    # ── F95zone (galería + descarga/traducción automática) ────────────────────
-    # F95Pipeline vive en un proyecto hermano (Eclipse-Source) — se importa
-    # directo en proceso (sys.path) en vez de por subprocess, ver routes/f95_worker.py.
-    F95PIPELINE_DIR = r"C:\Users\Usuario\Desktop\f\General\Eclipse-Source\F95Pipeline"
-    F95_STATE_FILE = "D:/General/f95_jobs.json"
+    # ── Usuarios y acceso ─────────────────────────────────────────────────────
+    # USUARIOS_FILE guarda las cuentas (contraseñas con hash, nunca en claro).
+    # Si no existe ninguna cuenta, al arrancar se crea un admin con
+    # ADMIN_USER / ADMIN_PASSWORD; sin ADMIN_PASSWORD la app no deja entrar
+    # a nadie hasta que se defina.
+    USUARIOS_FILE = os.path.join(DATA_DIR, "usuarios.json")
+    SECRET_KEY_FILE = os.path.join(DATA_DIR, "secret_key")
+    ADMIN_USER = _env("ADMIN_USER", "admin")
+    ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
+    SESSION_DIAS = 30
 
     # ── Índice de la biblioteca (SQLite) ──────────────────────────────────────
-    # Índice unificado de manga/hentai/animación/xxx/galería. Es una capa
-    # aditiva: si se borra, se reconstruye solo en el próximo arranque.
-    INDICE_DB = "D:/General/biblioteca.db"
+    # Capa aditiva: si se borra, se reconstruye solo en el próximo arranque.
+    INDICE_DB = os.path.join(DATA_DIR, "biblioteca.db")
     INDICE_INTERVALO = 300  # segundos entre escaneos incrementales
 
-    # ── Subtítulos automáticos (Whisper) ──────────────────────────────────────
-    # Cada cuánto revisa XXX/Animaciones en busca de videos sin subtítulos y
-    # los encola solo (sin que el usuario tenga que tocar el botón).
-    SUBS_AUTO_SCAN_INTERVALO = 600  # segundos
-
-    # ── Compresión automática por espacio en disco ────────────────────────────
-    # Dispara herramientas.comprimir_videos/comprimir_imagenes en real cuando
-    # el espacio libre en D: baja del umbral — evita repetir incidentes como el
-    # de _editable (disco lleno rompiendo traducciones a medias).
-    ESPACIO_CHECK_INTERVALO = 900       # segundos entre chequeos de disco
-    ESPACIO_UMBRAL_GB = 15              # dispara compresión si libre < esto
-    ESPACIO_COOLDOWN_HORAS = 6          # no re-disparar antes de este tiempo
-    ESPACIO_CALIDAD_VIDEO = "media"     # alta/media/agresiva — ver _cq_de en herramientas.py
     # Cache-Control de previews e imágenes: el nombre del archivo identifica el
     # contenido, así que el navegador puede quedárselas mucho tiempo. Esto es lo
     # que evita que el celular revalide cada miniatura en cada scroll.
     PREVIEW_MAX_AGE = 60 * 60 * 24 * 30   # 30 días
-    MEDIA_MAX_AGE   = 60 * 60 * 24 * 7    # 7 días (imágenes de manga/galería)
+    MEDIA_MAX_AGE   = 60 * 60 * 24 * 7    # 7 días (páginas de manga)
 
     # ── Extensiones permitidas ────────────────────────────────────────────────
     IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp", ".jfif")
-    VIDEO_EXTENSIONS = (".mp4", ".avi", ".mkv", ".webm")
     PREVIEW_EXTENSIONS = (".jpg", ".png", ".jpeg", ".webp")
 
-    # Subida de video desde la app (routes/video_agregar.py): tope generoso
-    # para que un corte de red no deje el proceso colgado leyendo un stream
-    # indefinido, no una limitación real de tamaño de video.
-    MAX_CONTENT_LENGTH = 5 * 1024 * 1024 * 1024  # 5 GB
-
     # ── Cache TTLs (segundos) ─────────────────────────────────────────────────
-    # Centralizados aquí para no dispersar magic numbers por el código.
-    CACHE_TTL_SHORT  = 60    # listas que cambian frecuentemente (mangas, hentai)
-    CACHE_TTL_MEDIUM = 300   # tags globales, artistas
-    CACHE_TTL_LONG   = 600   # stats globales, categorías xxx
+    CACHE_TTL_SHORT  = 60    # listas que cambian frecuentemente
+    CACHE_TTL_MEDIUM = 300   # tags globales
+    CACHE_TTL_LONG   = 600
 
     # ── Traducción de mangas (manga-image-translator, subprocess) ──────────────
     # Dos vías: "shared" (server persistente con modelos ya cargados en memoria,
     # rápido) con fallback automático a "local" (CLI clásico, recarga modelos
     # en cada página, lento pero no depende de que el server esté vivo).
-    TRADUCTOR_DIR = r"C:\Herramientas\manga-image-translator"
+    TRADUCTOR_DIR = _env("TRADUCTOR_DIR", r"C:\Herramientas\manga-image-translator")
     TRADUCTOR_PYTHON = os.path.join(TRADUCTOR_DIR, "venv", "Scripts", "python.exe")
     TRADUCTOR_TIMEOUT = 300  # segundos por página (páginas con mucho texto pueden tardar varios minutos)
     # Dedicated 10 GB partition (E:, label "cache mangas") so the regenerable
     # cache can never fill the USB drive D: again.
-    TRADUCTOR_CACHE_DIR = "E:\\"
+    TRADUCTOR_CACHE_DIR = _env("TRADUCTOR_CACHE_DIR", "E:\\")
     # When E: is nearly full, new translated pages are written here (Kingston,
     # D:) and a background thread (routes/cache_overflow.py) moves them back to
     # E: once it has room again. Hysteresis: overflow below MIN_FREE_MB,
     # restore above RESTORE_FREE_GB, so the two states don't flap.
-    TRADUCTOR_CACHE_OVERFLOW_DIR = "D:\\_traductor_cache_overflow"
+    TRADUCTOR_CACHE_OVERFLOW_DIR = _env("TRADUCTOR_CACHE_OVERFLOW_DIR", "D:\\_traductor_cache_overflow")
     TRADUCTOR_CACHE_MIN_FREE_MB = 300
     TRADUCTOR_CACHE_RESTORE_FREE_GB = 1.5
     TRADUCTOR_CACHE_RESTORE_INTERVALO = 300  # seconds between restore passes
@@ -262,36 +181,17 @@ class Config:
         return list(cls.MANGA_CONTENT_DIRS.values())
 
     @classmethod
-    def get_all_hentai_content_dirs(cls) -> list[str]:
-        return list(cls.HENTAI_CONTENT_DIRS.values())
-
-    @classmethod
     def initialize_directories(cls) -> None:
         """Crea todos los directorios necesarios si no existen."""
         dirs = [
-            # Mangas
             cls.ORDENAR_DIR, cls.LARGOS_DIR, cls.CORTOS_DIR,
             cls.FAVORITOS_DIR, cls.PREVIEW_LARGOS_DIR, cls.PREVIEW_CORTOS_DIR,
             cls.PREVIEW_FAVORITOS_DIR, cls.CONFLICTO_DIR,
-            # Hentai
-            cls.HENTAI_LARGOS_DIR, cls.HENTAI_CORTOS_DIR, cls.HENTAI_FAVORITOS_DIR,
-            cls.PREVIEW_HENTAI_LARGOS_DIR, cls.PREVIEW_HENTAI_CORTOS_DIR,
-            cls.PREVIEW_HENTAI_FAVORITOS_DIR, cls.CONFLICTO_HENTAI_DIR,
-            # Animaciones
-            cls.ANIMACION_DIR, cls.PREVIEW_ANIMACION_DIR,
-            # XXX
-            cls.XXX_DIR, cls.PREVIEW_XXX_DIR, cls.XXX_FAVORITOS_DIR,
-            # Descargas
-            cls.HENTAI_DESCARGAS_TEMP,
-            # Galería +18
-            cls.GALERIA_DIR,
-            os.path.dirname(cls.GALERIA_FAVORITOS_INDEX),  # _Favoritos/
-            # Bakemono
-            cls.BAKEMONO_DIR,
-            # Traducción de mangas
-            cls.TRADUCTOR_CACHE_DIR,
-            cls.TRADUCTOR_LLM_PENDIENTES_DIR,
+            cls.DATA_DIR,
         ]
+        # El caché del traductor solo hace falta si el traductor está instalado.
+        if os.path.isdir(cls.TRADUCTOR_DIR):
+            dirs += [cls.TRADUCTOR_CACHE_DIR, cls.TRADUCTOR_LLM_PENDIENTES_DIR]
         for d in dirs:
             os.makedirs(d, exist_ok=True)
         logger.info("Directorios inicializados (%d rutas)", len(dirs))

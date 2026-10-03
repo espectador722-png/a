@@ -1,14 +1,13 @@
-# routes/descargas.py — gestor de descargas de hentai (scraping + cola)
-import json
+# routes/descargas.py — descarga de galerías de imágenes (hitomi, 3hentai)
+# a la biblioteca de manga. Solo admins (ver routes/auth.py).
+import ipaddress
 import logging
-import queue
+from urllib.parse import urlsplit
 
 from flask import Blueprint, jsonify, request, render_template, Response
 
-from routes import scraper_hentai as scraper
 from routes import scraper_3hentai
 from routes import scraper_hitomi
-from routes import descargas_worker as worker
 
 logger = logging.getLogger(__name__)
 descargas_bp = Blueprint("descargas", __name__)
@@ -27,10 +26,33 @@ def pagina_descargas():
 # sitio — un <img>/CSS background del navegador manda como Referer nuestro
 # dominio (localhost:5000), así que las miniaturas quedan en blanco a menos
 # que las pasemos por este proxy, que sí manda el Referer correcto.
+_HITOMI_CDN = "gold-usergeneratedcontent.net"
+
+
+def _es_url_cdn_hitomi(url: str) -> bool:
+    """True solo si la URL apunta por HTTPS a un subdominio del CDN de hitomi.
+    Antes se buscaba el dominio como subcadena en toda la URL, así que
+    https://otro-sitio/?gold-usergeneratedcontent.net pasaba y el proxy
+    podía usarse para pedir cualquier URL (SSRF)."""
+    try:
+        partes = urlsplit(url)
+    except ValueError:
+        return False
+    host = (partes.hostname or "").lower()
+    if partes.scheme != "https" or partes.username or partes.password or partes.port not in (None, 443):
+        return False
+    try:
+        ipaddress.ip_address(host)
+        return False
+    except ValueError:
+        pass
+    return host == _HITOMI_CDN or host.endswith("." + _HITOMI_CDN)
+
+
 @descargas_bp.route("/api/descargas/hitomi/imagen")
 def api_hitomi_imagen():
     url = request.args.get("url", "")
-    if not url or not url.startswith("https://") or "gold-usergeneratedcontent.net" not in url:
+    if not _es_url_cdn_hitomi(url):
         return "", 400
     try:
         r = scraper_hitomi.proxy_imagen(url)
@@ -76,7 +98,7 @@ def api_hitomi_sugerencias():
 
 @descargas_bp.route("/api/descargas/buscar")
 def api_buscar():
-    site = request.args.get("site", "hentaila")
+    site = request.args.get("site", "hitomi")
     if site == "3hentai":
         q = request.args.get("q", "").strip()
         try:
@@ -118,46 +140,23 @@ def api_buscar():
         except Exception as e:
             logger.exception("Error en buscar (hitomi)")
             return jsonify({"error": str(e), "items": [], "total": 0, "pages": 1, "page": 1}), 200
-    if site != "hentaila":
-        return jsonify({"error": "sitio no disponible (Cloudflare)", "items": [],
-                        "total": 0, "pages": 1, "page": 1}), 200
-    seccion = request.args.get("seccion", "catalogo")
-    genre = request.args.get("genre", "").strip()
-    search = request.args.get("q", "").strip()
-    try:
-        page = max(1, int(request.args.get("page", 1)))
-    except (ValueError, TypeError):
-        page = 1
-    try:
-        res = scraper.listar(seccion=seccion, genre=genre, search=search, page=page)
-        return jsonify(res)
-    except Exception as e:
-        logger.exception("Error en buscar")
-        return jsonify({"error": str(e), "items": [], "total": 0, "pages": 1, "page": 1}), 200
-
-
-@descargas_bp.route("/api/descargas/generos")
-def api_generos():
-    try:
-        return jsonify({"generos": scraper.generos()})
-    except Exception as e:
-        logger.exception("Error en generos")
-        return jsonify({"generos": [], "error": str(e)})
+    return jsonify({"error": "sitio no soportado", "items": [],
+                    "total": 0, "pages": 1, "page": 1}), 400
 
 
 @descargas_bp.route("/api/descargas/detalle")
 def api_detalle():
-    site = request.args.get("site", "hentaila")
+    site = request.args.get("site", "hitomi")
     slug = request.args.get("slug", "").strip()
     if not slug:
         return jsonify({"error": "slug requerido"}), 400
+    if site not in ("3hentai", "hitomi"):
+        return jsonify({"error": "sitio no soportado"}), 400
     try:
         if site == "3hentai":
             d = scraper_3hentai.detalle(slug)
-        elif site == "hitomi":
-            d = scraper_hitomi.detalle(slug)
         else:
-            d = scraper.detalle(slug)
+            d = scraper_hitomi.detalle(slug)
         if not d:
             return jsonify({"error": "no encontrado"}), 404
         return jsonify(d)
@@ -272,165 +271,4 @@ def api_hitomi_descargar():
         return jsonify({"success": True, **info, "titulo": meta.get("titulo", "")})
     except Exception as e:
         logger.exception("Error descargando galería hitomi")
-        return jsonify({"success": False, "error": str(e)}), 500
-
-
-# ── Cola ────────────────────────────────────────────────────────────────────────
-
-@descargas_bp.route("/api/descargas/encolar", methods=["POST"])
-def api_encolar():
-    """
-    Body: {site, slug, episodios:[n...] , modo:"capitulos"|"completa"}
-    - "capitulos": descarga los episodios indicados.
-    - "completa":  descarga TODOS los episodios + guarda la info completa.
-    En ambos modos se crea la carpeta del hentai con cover.jpg + metadata.json.
-    """
-    data = request.json or {}
-    site = data.get("site", "hentaila")
-    slug = (data.get("slug") or "").strip()
-    modo = data.get("modo", "capitulos")
-    episodios = data.get("episodios", [])
-    if not slug:
-        return jsonify({"success": False, "error": "slug requerido"}), 400
-
-    # Metadata de confianza desde el server (no del cliente)
-    try:
-        meta = scraper.detalle(slug)
-    except Exception as e:
-        return jsonify({"success": False, "error": f"scrape: {e}"}), 502
-    if not meta:
-        return jsonify({"success": False, "error": "título no encontrado"}), 404
-
-    # Modo completa → todos los episodios del título
-    if modo == "completa":
-        episodios = meta.get("episodios") or list(range(1, (meta.get("episodesCount") or 0) + 1))
-
-    try:
-        numeros = sorted({int(n) for n in episodios})
-    except (ValueError, TypeError):
-        return jsonify({"success": False, "error": "episodios inválidos"}), 400
-
-    # Guardar SIEMPRE la info (carpeta + cover + metadata + preview), aunque los
-    # videos aún no bajen o fallen.
-    try:
-        info = worker.guardar_info(site, slug, meta)
-    except Exception as e:
-        logger.exception("Error guardando info")
-        info = {"error": str(e)}
-
-    creados = worker.encolar(site, slug, meta.get("titulo", slug), numeros, meta) if numeros else []
-    return jsonify({
-        "success": True, "encolados": len(creados), "ids": creados,
-        "modo": modo, "info": info,
-    })
-
-
-@descargas_bp.route("/api/descargas/cola")
-def api_cola():
-    return jsonify({"jobs": worker.listar_cola()})
-
-
-@descargas_bp.route("/api/descargas/novedades")
-def api_novedades():
-    """
-    Series que ya tenemos descargadas y tienen un episodio nuevo disponible
-    en el sitio (comparando por slug — ver descargas_worker.detectar_novedades).
-    Cacheado 30 min. Forzar recalcular: ?refresh=1
-    """
-    if request.args.get("refresh") in ("1", "true"):
-        from routes.helpers import invalidate_cache
-        invalidate_cache("hentai_novedades")
-    return jsonify({"novedades": worker.detectar_novedades()})
-
-
-@descargas_bp.route("/api/descargas/eventos")
-def api_eventos():
-    """SSE: snapshot inicial de la cola + cada cambio de job en tiempo real
-    (reemplaza el polling que hacía el front cada 1.5s)."""
-    def gen():
-        q = worker.subscribe()
-        try:
-            snapshot = json.dumps({"tipo": "snapshot", "data": worker.listar_cola()})
-            yield f"data: {snapshot}\n\n"
-            while True:
-                try:
-                    payload = q.get(timeout=15)
-                    yield f"data: {payload}\n\n"
-                except queue.Empty:
-                    yield ": keep-alive\n\n"
-        finally:
-            worker.unsubscribe(q)
-
-    return Response(gen(), mimetype="text/event-stream", headers={
-        "Cache-Control": "no-cache",
-        "X-Accel-Buffering": "no",
-    })
-
-
-@descargas_bp.route("/api/descargas/cola/accion", methods=["POST"])
-def api_cola_accion():
-    data = request.json or {}
-    jid = (data.get("id") or "").strip()
-    acc = (data.get("accion") or "").strip()
-    if not jid or acc not in ("cancelar", "reintentar", "quitar"):
-        return jsonify({"success": False, "error": "datos inválidos"}), 400
-    ok = worker.accion(jid, acc)
-    return jsonify({"success": ok})
-
-
-@descargas_bp.route("/api/descargas/cola/limpiar", methods=["POST"])
-def api_cola_limpiar():
-    """Saca de la cola todos los jobs completados de una (no borra archivos)."""
-    quitados = worker.limpiar_completados()
-    return jsonify({"success": True, "quitados": quitados})
-
-
-# ── Lista negra ─────────────────────────────────────────────────────────────────
-
-@descargas_bp.route("/api/descargas/blacklist")
-def api_blacklist():
-    return jsonify({"titulos": scraper.blacklist()})
-
-
-@descargas_bp.route("/api/descargas/blacklist", methods=["POST"])
-def api_blacklist_agregar():
-    data = request.json or {}
-    titulo = (data.get("titulo") or "").strip()
-    if not titulo:
-        return jsonify({"success": False, "error": "titulo requerido"}), 400
-    scraper.blacklist_agregar(titulo)
-    return jsonify({"success": True, "titulos": scraper.blacklist()})
-
-
-@descargas_bp.route("/api/descargas/blacklist", methods=["DELETE"])
-def api_blacklist_quitar():
-    data = request.json or {}
-    titulo = (data.get("titulo") or "").strip()
-    ok = scraper.blacklist_quitar(titulo)
-    return jsonify({"success": ok, "titulos": scraper.blacklist()})
-
-
-# ── Previews ────────────────────────────────────────────────────────────────────
-
-@descargas_bp.route("/api/descargas/previews/generar", methods=["POST"])
-def api_previews():
-    try:
-        forzar = bool((request.json or {}).get("forzar"))
-        stats = worker.regenerar_previews(forzar=forzar)
-        return jsonify({"success": True, "stats": stats})
-    except Exception as e:
-        logger.exception("Error regenerando previews")
-        return jsonify({"success": False, "error": str(e)}), 500
-
-
-@descargas_bp.route("/api/descargas/previews/recargar_covers", methods=["POST"])
-def api_recargar_covers():
-    """Re-descarga cover.jpg de todos los títulos ya guardados desde la URL
-    de portada corregida (covers/{id} en vez de thumbnails/{id}) y regenera
-    sus previews."""
-    try:
-        stats = worker.recargar_covers()
-        return jsonify({"success": True, "stats": stats})
-    except Exception as e:
-        logger.exception("Error recargando covers")
         return jsonify({"success": False, "error": str(e)}), 500

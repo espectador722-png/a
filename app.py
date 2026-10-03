@@ -4,23 +4,12 @@ import os
 import socket
 from flask import Flask, send_from_directory
 from config import Config
+from routes import auth
 from routes.manga import manga_bp
 from routes.manga_traductor import manga_traductor_bp
-from routes.hentai import hentai_bp
-from routes.animacion import animacion_bp
-from routes.xxx import xxx_bp
-from routes.galeria import galeria_bp
-from routes.stats import stats_bp
-from routes.media import media_bp
 from routes.descargas import descargas_bp
 from routes.categorias import categorias_bp
 from routes.colecciones import colecciones_bp
-from routes.inicio import inicio_bp
-from routes.bakemono import bakemono_bp
-from routes.f95 import f95_bp
-from routes.video_duplicados import video_duplicados_bp
-from routes.video_agregar import video_agregar_bp
-from routes import descargas_worker
 from routes import indice
 
 # Configurar logging ANTES de importar cualquier módulo que use logging
@@ -68,23 +57,17 @@ def create_app():
     app = Flask(__name__, template_folder="HTML")
     app.config.from_object(Config)
 
+    Config.initialize_directories()
+
+    # Acceso: sesión, login y permisos por rol (antes que cualquier ruta)
+    auth.configurar(app)
+
     # Registrar blueprints
     app.register_blueprint(manga_bp)
     app.register_blueprint(manga_traductor_bp)
-    app.register_blueprint(hentai_bp)
-    app.register_blueprint(animacion_bp)
-    app.register_blueprint(xxx_bp)
-    app.register_blueprint(galeria_bp)
-    app.register_blueprint(stats_bp)
-    app.register_blueprint(media_bp)
     app.register_blueprint(descargas_bp)
     app.register_blueprint(categorias_bp)
     app.register_blueprint(colecciones_bp)
-    app.register_blueprint(inicio_bp)
-    app.register_blueprint(bakemono_bp)
-    app.register_blueprint(f95_bp)
-    app.register_blueprint(video_duplicados_bp)
-    app.register_blueprint(video_agregar_bp)
 
     # Favicon: algunos navegadores lo piden en /favicon.ico aunque haya <link rel="icon">
     @app.route("/favicon.ico")
@@ -109,24 +92,22 @@ def create_app():
             mimetype="application/manifest+json",
         )
 
-    Config.initialize_directories()
-
-    # Worker de descargas e índice: arrancar solo una vez.
+    # Hilos de fondo (índice, traductor): arrancar solo una vez.
     # Con debug=True, Werkzeug crea un proceso hijo (reloader); el padre tiene
     # WERKZEUG_RUN_MAIN sin definir. Arrancamos en el proceso que sirve requests.
     if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
-        descargas_worker.iniciar()
         indice.iniciar()
-        from routes import espacio_worker
-        espacio_worker.iniciar()
-        from routes import cache_overflow
-        cache_overflow.iniciar()
-        from routes.subtitles import iniciar_auto_scan
-        iniciar_auto_scan()
-        from routes.manga_traductor import iniciar_shared_server, iniciar_worker_http, _retomar_cola_persistida
-        iniciar_shared_server()
-        iniciar_worker_http()
-        _retomar_cola_persistida()
+        # El traductor es opcional: solo arranca si manga-image-translator
+        # está instalado en Config.TRADUCTOR_DIR.
+        if os.path.isdir(Config.TRADUCTOR_DIR):
+            from routes import cache_overflow
+            cache_overflow.iniciar()
+            from routes.manga_traductor import iniciar_shared_server, iniciar_worker_http, _retomar_cola_persistida
+            iniciar_shared_server()
+            iniciar_worker_http()
+            _retomar_cola_persistida()
+        else:
+            logger.info("Traductor no instalado (%s) — se omite", Config.TRADUCTOR_DIR)
 
     logger.info("Aplicación inicializada correctamente")
     return app
@@ -145,14 +126,7 @@ if __name__ == "__main__":
         app.run(host="0.0.0.0", port=PORT, debug=True)
     else:
         # Uso normal: servidor multihilo real (waitress), sin debugger.
-        # Evita que ver un video o un escaneo de carpeta grande bloquee
-        # a todos los demás clientes (causa del "se queda cargando").
         from waitress import serve
-        # threads=32: cada conexión SSE abierta (cola de descargas en tiempo
-        # real, /api/descargas/eventos) retiene un hilo waitress todo el
-        # tiempo que la pestaña esté abierta. Con varias pestañas del sitio
-        # abiertas a la vez, 8 hilos se agotaban solo con las SSE y dejaban
-        # las demás requests (descargar, listar) colgadas o con
-        # ERR_CONNECTION_RESET — confirmado en vivo 2026-09-19 (5 conexiones
-        # SSE simultáneas ya usaban más de la mitad del pool de 8).
+        # threads=32: un escaneo de carpeta grande o una página pesada no
+        # debe dejar colgados a los demás clientes.
         serve(app, host="0.0.0.0", port=PORT, threads=32)

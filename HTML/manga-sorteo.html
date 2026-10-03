@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-rol="{{ g.usuario.rol }}" data-usuario="{{ g.usuario.usuario }}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -288,6 +288,8 @@ body {
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 </style>
+<link rel="stylesheet" href="/static/css/sesion.css">
+<script src="/static/js/sesion.js"></script>
 </head>
 <body>
 

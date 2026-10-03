@@ -1,8 +1,8 @@
 {
-  "name": "Biblioteca",
-  "short_name": "Biblioteca",
-  "description": "Manga, animaciones y videos de la biblioteca local",
-  "start_url": "/inicio",
+  "name": "Biblioteca de Manga",
+  "short_name": "Manga",
+  "description": "Biblioteca de manga local",
+  "start_url": "/manga",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
@@ -31,19 +31,14 @@
   ],
   "shortcuts": [
     {
-      "name": "Mangas",
-      "url": "/",
-      "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }]
-    },
-    {
-      "name": "Galería",
-      "url": "/galeria.html",
-      "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }]
-    },
-    {
-      "name": "Descargas",
-      "url": "/descargas",
-      "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }]
+      "name": "Biblioteca",
+      "url": "/manga",
+      "icons": [
+        {
+          "src": "/static/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }
