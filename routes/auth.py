@@ -234,6 +234,10 @@ MAX_FALLOS = 5
 BLOQUEO_SEG = 300
 _fallos: dict[str, tuple[int, float]] = {}
 
+# Hash de relleno: si el usuario no existe se verifica contra este, así el
+# login tarda lo mismo y no revela qué nombres de usuario existen.
+_HASH_RELLENO = generate_password_hash(secrets.token_hex(16))
+
 
 def _bloqueado(ip: str) -> int:
     n, desde = _fallos.get(ip, (0, 0.0))
@@ -271,7 +275,8 @@ def login_post():
     nombre = (data.get("usuario") or "").strip()
     password = data.get("password") or ""
     u = _cargar().get(nombre.lower())
-    if not u or not check_password_hash(u["hash"], password):
+    valida = check_password_hash(u["hash"] if u else _HASH_RELLENO, password)
+    if not u or not valida:
         _registrar_fallo(ip)
         logger.warning("Login fallido para '%s' desde %s", nombre, ip)
         actividad.registrar(nombre[:64], "login fallido", ok=False)
