@@ -140,6 +140,12 @@ select.inp{max-width:100%;text-overflow:ellipsis;border-radius:8px;cursor:pointe
 .gal-chip.female::after{content:" \2640"}
 .gal-chip.male::after{content:" \2642"}
 .gal-info{font-size:12px;color:var(--muted2);display:flex;gap:10px;flex-wrap:wrap}
+.lxd-jobs{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+.lxd-job{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border2);border-radius:10px;padding:10px 14px}
+.lxd-job.completado{border-color:rgba(80,200,120,.45)}
+.lxd-job.error{border-color:rgba(255,107,107,.5)}
+.lxd-job-t{font-weight:600;font-size:13.5px;flex:1 1 220px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lxd-job-m{font-size:12px;color:var(--muted2);flex:2 1 260px}
 .gal-pages{display:grid;grid-template-columns:repeat(auto-fill,minmax(70px,1fr));gap:6px;margin-top:4px}
 .gal-pages img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:6px;border:1px solid var(--border);background:var(--surface3);cursor:pointer;transition:.15s}
 .gal-pages img:hover{border-color:var(--accent);transform:scale(1.04)}
@@ -196,6 +202,7 @@ select.inp{max-width:100%;text-overflow:ellipsis;border-radius:8px;cursor:pointe
     <select class="inp" id="site" onchange="cambiarSite()">
       <option value="hitomi">Hitomi.la</option>
       <option value="3hentai">3Hentai</option>
+      <option value="lectorxd">Lector XD (manga/manhwa/manhua)</option>
     </select>
     <div class="search-box">
       <i class="bi bi-search"></i>
@@ -226,8 +233,10 @@ select.inp{max-width:100%;text-overflow:ellipsis;border-radius:8px;cursor:pointe
       <i class="bi bi-link-45deg"></i>
       <input class="inp" id="galeriaUrl" placeholder="Pegar URL o id de galería" onkeydown="if(event.key==='Enter')descargarGaleriaUrl()">
     </div>
-    <button class="btn2 active" onclick="descargarGaleriaUrl()"><i class="bi bi-download"></i> Descargar galería</button>
+    <button class="btn2 active" id="btnGaleriaUrl" onclick="descargarGaleriaUrl()"><i class="bi bi-download"></i> Descargar galería</button>
   </div>
+
+  <div class="lxd-jobs" id="lxdJobs" style="display:none"></div>
 
   <div class="grid" id="grid"><div class="state"><div class="spin"></div></div></div>
   <div class="pager" id="pager"></div>
@@ -494,7 +503,15 @@ function cambiarSite(){
   const urlInput=document.getElementById('galeriaUrl');
   urlInput.placeholder=SITE==='hitomi'
     ?'Pegar URL o id de galería hitomi.la (ej: https://hitomi.la/galleries/123456.html)'
+    :SITE==='lectorxd'
+    ?'Pegar URL de una serie o capítulo de lectorxd.com (ej: https://lectorxd.com/manga/nombre/leer/1)'
     :'Pegar URL o id de galería 3hentai (ej: https://es.3hentai.net/d/609191)';
+  const txtBoton=SITE==='lectorxd'?'Descargar serie':'Descargar galería';
+  document.getElementById('btnGaleriaUrl').innerHTML=`<i class="bi bi-download"></i> ${txtBoton}`;
+  document.getElementById('mdlgaleria').innerHTML=`<i class="bi bi-download"></i> ${txtBoton}`;
+  document.getElementById('q').placeholder=SITE==='lectorxd'?'Buscar series…':'Buscar galerías…';
+  if(SITE==='lectorxd')actualizarJobsLectorxd();
+  else document.getElementById('lxdJobs').style.display='none';
   ocultarSugerencias();
   buscar(1);
 }
@@ -504,6 +521,7 @@ async function descargarGaleriaUrl(){
   const valor=input.value.trim();
   if(!valor){toast('Pegá una URL o id de galería');return;}
   const btn=event.target.closest('button');
+  if(SITE==='lectorxd'){await iniciarSerieLectorxd(valor,null,null,btn,()=>{input.value='';});return;}
   await _ejecutarDescargaGaleria(SITE,valor,btn,()=>{input.value='';});
 }
 
@@ -682,6 +700,7 @@ async function buscar(page){
 }
 
 async function descargarGaleriaDirecto(slug,btn){
+  if(SITE==='lectorxd'){await iniciarSerieLectorxd(slug,null,null,btn,null);return;}
   await _ejecutarDescargaGaleria(SITE,slug,btn,null);
 }
 
@@ -714,6 +733,24 @@ async function abrirGaleria(slug){
     if(d.paginas_total)chips.push(`<span class="chip">${d.paginas_total}P</span>`);
     document.getElementById('mchips').innerHTML=chips.join('');
     document.getElementById('msyn').textContent=d.sinopsis||'';
+    if(SITE==='lectorxd'){
+      const caps=d.capitulos_en_ficha||[];
+      const ultimo=caps.length?caps[caps.length-1]:'';
+      document.getElementById('mgalMeta').innerHTML=`
+        <div class="gal-info">
+          <span>Empieza en el capítulo ${esc(String(d.capitulo_inicio))}</span>
+          ${caps.length?`<span>${caps.length} capítulos en la ficha</span>`:''}
+          <span>${d.paginas_primer_capitulo} páginas en el primero</span>
+        </div>
+        <div class="gal-row" style="gap:8px;align-items:center">
+          <span class="lbl">Capítulos</span>
+          <input class="inp" id="lxdDesde" type="number" step="any" min="0" placeholder="Desde" value="${esc(String(d.capitulo_inicio))}" style="width:100px">
+          <input class="inp" id="lxdHasta" type="number" step="any" min="0" placeholder="Hasta (vacío = todos)" value="" style="width:170px">
+          ${ultimo?`<span style="font-size:12px;color:var(--muted2)">último en la ficha: ${esc(String(ultimo))}</span>`:''}
+        </div>
+        <div style="font-size:12px;color:var(--muted2)">Se descarga en segundo plano, siguiendo el botón "siguiente capítulo" del sitio. Cada capítulo queda como un manga aparte agrupado por serie.</div>`;
+      return;
+    }
 
     const fila=(lbl,ns,items)=>{
       if(!items||!items.length)return '';
@@ -751,6 +788,12 @@ async function abrirGaleria(slug){
 async function descargarDesdeModal(){
   if(!DETALLE)return;
   const btn=document.getElementById('mdlgaleria');
+  if(SITE==='lectorxd'){
+    const desde=document.getElementById('lxdDesde').value.trim();
+    const hasta=document.getElementById('lxdHasta').value.trim();
+    await iniciarSerieLectorxd(DETALLE.source_url,desde,hasta,btn,()=>cerrarModal());
+    return;
+  }
   await _ejecutarDescargaGaleria(SITE,DETALLE.slug,btn,()=>cerrarModal());
 }
 
@@ -761,6 +804,59 @@ function buscarPorChip(ns,valor){
 }
 
 function cerrarModal(){document.getElementById('modal').classList.remove('show');}
+
+// ── lectorxd: descargas de series en segundo plano ──────────────────────────
+let _lxdTimer=null;
+
+async function iniciarSerieLectorxd(url,desde,hasta,btn,onOk){
+  const orig=btn?btn.innerHTML:null;
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="bi bi-hourglass-split"></i> Iniciando…';}
+  try{
+    const r=await fetch('/api/descargas/lectorxd/descargar',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({url,desde:desde||null,hasta:hasta||null})});
+    const d=await r.json();
+    if(d.success){
+      toast(`⬇ "${d.titulo}" — descargando en segundo plano`);
+      if(onOk)onOk();
+      actualizarJobsLectorxd();
+    }else{
+      toast('Error: '+(d.error||'no se pudo iniciar la descarga'));
+    }
+  }catch(e){toast('Error de conexión');}
+  if(btn){btn.disabled=false;btn.innerHTML=orig;}
+}
+
+async function actualizarJobsLectorxd(){
+  clearTimeout(_lxdTimer);
+  const box=document.getElementById('lxdJobs');
+  let jobs=[];
+  try{
+    const r=await fetch('/api/descargas/lectorxd/estado');
+    jobs=(await r.json()).jobs||[];
+  }catch(e){return;}
+  if(SITE!=='lectorxd'||!jobs.length){box.style.display='none';return;}
+  const etiqueta={descargando:'Descargando',completado:'Completado',cancelado:'Cancelado',error:'Error'};
+  box.style.display='flex';
+  box.innerHTML=jobs.map(j=>{
+    const ok=j.capitulos_ok.length, mal=j.capitulos_fallidos.length;
+    const actual=j.capitulo_actual!=null?` · capítulo ${esc(String(j.capitulo_actual))}`:'';
+    return `<div class="lxd-job ${j.estado}">
+      <div class="lxd-job-t">${esc(j.titulo)}</div>
+      <div class="lxd-job-m">${etiqueta[j.estado]||esc(j.estado)}${actual} · ${ok} cap. ok${mal?` · <span style="color:#ff6b6b">${mal} fallidos (${mal<=6?j.capitulos_fallidos.map(String).map(esc).join(', '):'ver log'})</span>`:''} · ${j.paginas_ok}/${j.paginas_total} págs.${j.error?` · ${esc(j.error)}`:''}</div>
+      ${j.estado==='descargando'?`<button class="btn2" onclick='cancelarJobLectorxd(${JSON.stringify(j.id)},this)'><i class="bi bi-x-circle"></i> Cancelar</button>`:''}
+    </div>`;
+  }).join('');
+  if(jobs.some(j=>j.estado==='descargando'))_lxdTimer=setTimeout(actualizarJobsLectorxd,3000);
+}
+
+async function cancelarJobLectorxd(id,btn){
+  if(btn)btn.disabled=true;
+  try{
+    await fetch('/api/descargas/lectorxd/cancelar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
+    toast('Cancelando… termina la página en curso');
+  }catch(e){toast('Error de conexión');}
+  actualizarJobsLectorxd();
+}
 
 cambiarSite();
 </script>

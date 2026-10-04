@@ -81,7 +81,9 @@ Servidor Flask para leer y organizar una biblioteca de manga local desde la PC o
 - **Duplicados** por hash perceptual de portadas.
 - **Exportar** a CBZ o PDF.
 - **Traductor** (opcional) con [manga-image-translator](https://github.com/zyddnys/manga-image-translator). Solo arranca si está instalado.
-- **Descargas** de galerías de hitomi.la y 3hentai directo a la biblioteca.
+- **Descargas** de galerías de hitomi.la y 3hentai directo a la biblioteca, y de
+  series completas de lectorxd.com (manga/manhwa/manhua, capítulo por capítulo,
+  en segundo plano, con rango "desde/hasta" y botón para cancelar).
 - **PWA**: se puede instalar en el celular como app.
 
 ### Usuarios y permisos
@@ -93,7 +95,7 @@ Todos entran con usuario y contraseña. Hay dos roles:
 | Ver la biblioteca, buscar, leer, guardar progreso | ✅ | ✅ |
 | Sus propios favoritos, progreso e historial (incluido marcar leído / sin leer) | ✅ | ✅ |
 | Cambiar su propia contraseña | ✅ | ✅ |
-| Descargas (hitomi, 3hentai) | | ✅ |
+| Descargas (hitomi, 3hentai, lectorxd) | | ✅ |
 | Borrar, mover, renombrar, tags, series, colecciones, categorías | | ✅ |
 | Traductor, exportar, abrir carpeta | | ✅ |
 | Duplicados y sorteo | | ✅ |
@@ -164,7 +166,8 @@ routes/
   image_hash.py     duplicados por hash perceptual
   manga_export.py   CBZ / PDF
   manga_traductor*.py, cache_overflow.py   traductor (opcional)
-  descargas.py, scraper_hitomi.py, scraper_3hentai.py   descargas (admin)
+  descargas.py, scraper_hitomi.py, scraper_3hentai.py,
+  scraper_lectorxd.py                                     descargas (admin)
 HTML/               páginas (plantillas Jinja)
 static/             JS, CSS, íconos, Bootstrap local
 tests/              pruebas de acceso y permisos

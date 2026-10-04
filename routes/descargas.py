@@ -1,5 +1,6 @@
-# routes/descargas.py — descarga de galerías de imágenes (hitomi, 3hentai)
-# a la biblioteca de manga. Solo admins (ver routes/auth.py).
+# routes/descargas.py — descarga de galerías de imágenes (hitomi, 3hentai) y de
+# series por capítulos (lectorxd) a la biblioteca de manga. Solo admins (ver
+# routes/auth.py).
 import ipaddress
 import logging
 from urllib.parse import urlsplit
@@ -8,6 +9,7 @@ from flask import Blueprint, jsonify, request, render_template, Response
 
 from routes import scraper_3hentai
 from routes import scraper_hitomi
+from routes import scraper_lectorxd
 
 logger = logging.getLogger(__name__)
 descargas_bp = Blueprint("descargas", __name__)
@@ -140,6 +142,20 @@ def api_buscar():
         except Exception as e:
             logger.exception("Error en buscar (hitomi)")
             return jsonify({"error": str(e), "items": [], "total": 0, "pages": 1, "page": 1}), 200
+    if site == "lectorxd":
+        q = request.args.get("q", "").strip()
+        try:
+            page = max(1, int(request.args.get("page", 1)))
+        except (ValueError, TypeError):
+            page = 1
+        try:
+            res = scraper_lectorxd.buscar(query=q, page=page)
+            for it in res["items"]:
+                it["poster"] = _proxy_lectorxd(it["poster"])
+            return jsonify(res)
+        except Exception as e:
+            logger.exception("Error en buscar (lectorxd)")
+            return jsonify({"error": str(e), "items": [], "total": 0, "pages": 1, "page": 1}), 200
     return jsonify({"error": "sitio no soportado", "items": [],
                     "total": 0, "pages": 1, "page": 1}), 400
 
@@ -150,10 +166,14 @@ def api_detalle():
     slug = request.args.get("slug", "").strip()
     if not slug:
         return jsonify({"error": "slug requerido"}), 400
-    if site not in ("3hentai", "hitomi"):
+    if site not in ("3hentai", "hitomi", "lectorxd"):
         return jsonify({"error": "sitio no soportado"}), 400
     try:
-        if site == "3hentai":
+        if site == "lectorxd":
+            d = scraper_lectorxd.detalle(slug)
+            if d:
+                d["poster"] = _proxy_lectorxd(d["poster"])
+        elif site == "3hentai":
             d = scraper_3hentai.detalle(slug)
         else:
             d = scraper_hitomi.detalle(slug)
@@ -272,3 +292,70 @@ def api_hitomi_descargar():
     except Exception as e:
         logger.exception("Error descargando galería hitomi")
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ── lectorxd.com (series por capítulos, descarga en segundo plano) ─────────────
+
+def _proxy_lectorxd(url: str) -> str:
+    """Las imágenes del CDN se muestran a través del proxy de abajo (el CDN
+    puede rechazar pedidos con Referer ajeno)."""
+    if not url or not scraper_lectorxd.es_imagen_del_cdn(url):
+        return ""
+    from urllib.parse import quote
+    return "/api/descargas/lectorxd/imagen?url=" + quote(url, safe="")
+
+
+@descargas_bp.route("/api/descargas/lectorxd/imagen")
+def api_lectorxd_imagen():
+    url = request.args.get("url", "")
+    if not scraper_lectorxd.es_imagen_del_cdn(url):
+        return "", 400
+    try:
+        r = scraper_lectorxd._SESSION.get(url, timeout=30)
+        if r.status_code != 200:
+            return "", r.status_code
+        return Response(r.content, mimetype=r.headers.get("Content-Type", "image/webp"),
+                        headers={"Cache-Control": "public, max-age=86400"})
+    except Exception as e:
+        logger.warning("Error en proxy de imagen lectorxd: %s", e)
+        return "", 502
+
+
+def _numero_opcional(valor):
+    if valor in (None, ""):
+        return None
+    try:
+        return float(valor)
+    except (TypeError, ValueError):
+        raise ValueError(f"número de capítulo inválido: {valor!r}")
+
+
+@descargas_bp.route("/api/descargas/lectorxd/descargar", methods=["POST"])
+def api_lectorxd_descargar():
+    """Body: {"slug" o "url": URL de la serie o de un capítulo,
+    "desde"?: número, "hasta"?: número}. Arranca en segundo plano y devuelve
+    el job; el avance se consulta en /api/descargas/lectorxd/estado."""
+    data = request.get_json(silent=True) or {}
+    url = (data.get("url") or data.get("slug") or "").strip()
+    if not scraper_lectorxd.analizar_url(url):
+        return jsonify({"success": False, "error": "Pegá una URL de una serie o capítulo de lectorxd.com"}), 400
+    try:
+        desde, hasta = _numero_opcional(data.get("desde")), _numero_opcional(data.get("hasta"))
+        job = scraper_lectorxd.iniciar_descarga(url, desde, hasta)
+        return jsonify({"success": True, "job": job, "titulo": job["titulo"]})
+    except ValueError as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+    except Exception as e:
+        logger.exception("Error iniciando descarga lectorxd")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@descargas_bp.route("/api/descargas/lectorxd/estado")
+def api_lectorxd_estado():
+    return jsonify({"jobs": scraper_lectorxd.estado()})
+
+
+@descargas_bp.route("/api/descargas/lectorxd/cancelar", methods=["POST"])
+def api_lectorxd_cancelar():
+    data = request.get_json(silent=True) or {}
+    return jsonify({"success": scraper_lectorxd.cancelar(str(data.get("id", "")))})
