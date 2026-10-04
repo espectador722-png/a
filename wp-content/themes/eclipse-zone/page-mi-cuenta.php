@@ -19,7 +19,7 @@ $ez_history = ezc_user_history( 12 );
 	<section class="section">
 		<h2>Seguir leyendo</h2>
 		<?php if ( $ez_history ) : ?>
-			<div class="grid">
+			<div class="grid grid--manga">
 				<?php
 				foreach ( $ez_history as $post ) {
 					setup_postdata( $post );
@@ -36,7 +36,7 @@ $ez_history = ezc_user_history( 12 );
 	<section class="section">
 		<h2>Mis favoritos</h2>
 		<?php if ( $ez_favs ) : ?>
-			<div class="grid">
+			<div class="grid grid--games">
 				<?php
 				foreach ( $ez_favs as $post ) {
 					setup_postdata( $post );

@@ -41,6 +41,13 @@ El sitio anterior enlazaba solo 100 de ~590 juegos desde `/juegos/` y 12 desde e
 - **Motor y desarrollador**: si `juegos.json` trae `motor` o `desarrollador`, se importan. Si no, el motor se detecta cuando aparece entre las categorías ("Ren'Py", "Unity"…). También se pueden cargar a mano.
 - **Franja de Discord**: **Apariencia → Personalizar → Eclipse Zone** → pegá la invitación. Quien la cierra no la vuelve a ver.
 
+## Comunidad
+
+- **Comentarios** en juegos, noticias y mangas, con respuestas anidadas. En **Ajustes → Comentarios** conviene marcar *"Los usuarios deben registrarse e iniciar sesión para comentar"* (corta el spam). Los comentarios del equipo llevan la etiqueta "Eclipse Zone".
+- **Reacciones** 👍 ❤️ 🔥 😂 😮 😢 en juegos, noticias y mangas. Solo con sesión iniciada; cada uno puede marcar varias y quitarlas con otro clic.
+- **Color por traductor**: **Juegos → Traductores → editar** → elegí el color. Sin elegir, cada traductor recibe uno fijo de la paleta.
+- A los lectores no se les muestra la barra negra de WordPress; solo a editores y administradores.
+
 ## Mangas
 
 - **Serie con capítulos**: creá el manga (título, sinopsis, portada, etiquetas) sin páginas. Después creá cada capítulo como otro manga, con la serie elegida en **Atributos → Superior** y el número en **Orden**.

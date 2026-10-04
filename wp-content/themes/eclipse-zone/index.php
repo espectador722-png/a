@@ -7,7 +7,7 @@ get_header();
 		<h1><?php echo esc_html( is_search() ? sprintf( 'Resultados para “%s”', get_search_query() ) : wp_strip_all_tags( get_the_archive_title() ) ); ?></h1>
 	</header>
 	<?php if ( have_posts() ) : ?>
-		<div class="grid">
+		<div class="grid grid--games">
 			<?php
 			while ( have_posts() ) {
 				the_post();

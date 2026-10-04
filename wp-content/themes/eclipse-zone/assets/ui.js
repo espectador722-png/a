@@ -20,7 +20,7 @@
 	if (EZ.vista) {
 		EZ.post('vista', { id: EZ.vista }).then(function (r) {
 			document.querySelectorAll('[data-ez-views]').forEach(function (el) {
-				el.textContent = r.vistas.toLocaleString('es');
+				el.textContent = r.vistas.toLocaleString('es') + (r.vistas === 1 ? ' vista' : ' vistas');
 			});
 		}).catch(function () {});
 	}
@@ -106,6 +106,22 @@
 				read.closest('li').classList.toggle('is-read', leido);
 			}).catch(function () { alert('No se pudo guardar. Probá de nuevo.'); })
 				.finally(function () { read.disabled = false; });
+			return;
+		}
+
+		var react = e.target.closest('[data-ez-react] button');
+		if (react) {
+			if (needLogin()) return;
+			var bar = react.closest('[data-ez-react]');
+			react.disabled = true;
+			EZ.post('reaccion', { id: +bar.dataset.ezReact, emoji: react.value }).then(function (r) {
+				bar.querySelectorAll('button').forEach(function (b) {
+					var n = r.counts[b.value] || 0;
+					b.setAttribute('aria-pressed', r.mias.indexOf(b.value) !== -1 ? 'true' : 'false');
+					b.querySelector('b').textContent = n ? n.toLocaleString('es') : '';
+				});
+			}).catch(function () { alert('No se pudo guardar la reacción.'); })
+				.finally(function () { react.disabled = false; });
 			return;
 		}
 

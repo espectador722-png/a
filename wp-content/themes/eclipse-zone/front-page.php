@@ -170,7 +170,7 @@ $ez_total    = (int) wp_count_posts( 'juego' )->publish;
 			<h2>Mangas</h2>
 			<a href="<?php echo esc_url( get_post_type_archive_link( 'manga' ) ); ?>">Todos los mangas ›</a>
 		</div>
-		<div class="grid">
+		<div class="grid grid--manga">
 			<?php
 			while ( $ez_mangas->have_posts() ) {
 				$ez_mangas->the_post();

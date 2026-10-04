@@ -57,6 +57,7 @@ while ( have_posts() ) :
 					<a class="btn btn--ghost" href="<?php echo esc_url( get_post_type_archive_link( 'manga' ) ); ?>">Más mangas</a>
 				<?php endif; ?>
 			</div>
+			<?php echo ezt_reactions_html( $ez_id ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 
 		<?php else : ?>
 			<?php $ez_chapters = ezc_manga_chapters( $ez_id ); ?>
@@ -87,6 +88,8 @@ while ( have_posts() ) :
 							<button type="button" class="btn btn--ghost" data-ez-fav="<?php echo (int) $ez_id; ?>" aria-pressed="<?php echo ezc_is_favorite( $ez_id ) ? 'true' : 'false'; ?>">★ Favorito</button>
 						<?php endif; ?>
 					</div>
+					<?php echo ezt_vote_html( $ez_id ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+					<?php echo ezt_reactions_html( $ez_id ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 				</div>
 			</div>
 
@@ -111,6 +114,12 @@ while ( have_posts() ) :
 				<p>Todavía no hay capítulos.</p>
 			<?php endif; ?>
 		<?php endif; ?>
+
+		<?php
+		if ( comments_open() || get_comments_number() ) {
+			comments_template();
+		}
+		?>
 	</div>
 	<?php
 endwhile;
