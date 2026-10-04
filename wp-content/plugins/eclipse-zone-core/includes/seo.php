@@ -31,14 +31,92 @@ function ezc_seo_plugin_active() {
 	return defined( 'RANK_MATH_VERSION' ) || defined( 'WPSEO_VERSION' );
 }
 
-/** "Champion of Realms v0.109 en Español" — mismo formato que el sitio anterior. */
+/**
+ * Plataformas de un juego para el texto SEO.
+ * ['android' => bool, 'pc' => bool, 'solo_android' => bool, 'lista' => "PC, Android y JoiPlay"]
+ */
+function ezc_game_platforms( $post_id ) {
+	$names   = (array) wp_get_post_terms( $post_id, 'plataforma', array( 'fields' => 'names' ) );
+	$android = array_filter( $names, function ( $n ) {
+		return (bool) preg_match( '/android|joiplay|apk/i', $n );
+	} );
+	$pc      = array_filter( $names, function ( $n ) {
+		return (bool) preg_match( '/\bpc\b|windows|linux|mac/i', $n );
+	} );
+	$lista   = count( $names ) > 1 ? implode( ', ', array_slice( $names, 0, -1 ) ) . ' y ' . end( $names ) : ( $names[0] ?? '' );
+	return array(
+		'android'      => (bool) $android,
+		'pc'           => (bool) $pc,
+		// "APK" solo si TODO es Android/JoiPlay (regla del sitio anterior: "PC APK" no existe).
+		'solo_android' => $names && count( $android ) === count( $names ),
+		'lista'        => $lista,
+	);
+}
+
+function ezc_game_version( $post_id ) {
+	$v = trim( (string) get_post_meta( $post_id, 'ez_version', true ) );
+	return '' === $v ? '' : preg_replace( '/^v*(?=\d)/i', 'v', $v );
+}
+
+/**
+ * Título de la ficha, con las palabras que la gente busca:
+ *   "Summertime Saga v21.0 en Español APK"           (solo Android)
+ *   "Champion of Realms v0.109 en Español PC y APK"  (PC + Android)
+ *   "Juego v1.0 en Español PC"                       (solo PC)
+ */
 function ezc_game_title( $post_id = null ) {
 	$post_id = $post_id ?: get_the_ID();
-	$version = trim( (string) get_post_meta( $post_id, 'ez_version', true ) );
-	if ( $version !== '' ) {
-		$version = ' ' . preg_replace( '/^v*(?=\d)/i', 'v', $version );
+	$version = ezc_game_version( $post_id );
+	$p       = ezc_game_platforms( $post_id );
+	if ( $p['solo_android'] ) {
+		$suffix = ' APK';
+	} elseif ( $p['android'] && $p['pc'] ) {
+		$suffix = ' PC y APK';
+	} elseif ( $p['pc'] ) {
+		$suffix = ' PC';
+	} else {
+		$suffix = '';
 	}
-	return get_the_title( $post_id ) . $version . ' en Español';
+	return trim( get_the_title( $post_id ) . ( $version ? ' ' . $version : '' ) ) . ' en Español' . $suffix;
+}
+
+/** Variantes de búsqueda reales del juego (para schema alternateName y el texto de la ficha). */
+function ezc_game_search_names( $post_id ) {
+	$t     = get_the_title( $post_id );
+	$p     = ezc_game_platforms( $post_id );
+	$names = array( "$t en español", "$t español", "$t traducido al español" );
+	if ( $p['android'] ) {
+		array_push( $names, "$t APK en español", "$t APK español", "$t en español APK" );
+	}
+	if ( $p['pc'] ) {
+		$names[] = "$t en español PC";
+	}
+	return $names;
+}
+
+/** Descripción para Google: plataformas, versión y traductor delante; luego la sinopsis. */
+function ezc_game_description( $post_id ) {
+	$t     = get_the_title( $post_id );
+	$p     = ezc_game_platforms( $post_id );
+	$v     = ezc_game_version( $post_id );
+	$trads = implode( ', ', (array) wp_get_post_terms( $post_id, 'traductor', array( 'fields' => 'names' ) ) );
+	$para  = $p['lista'] ? ' para ' . $p['lista'] : '';
+	if ( $p['android'] ) {
+		$para .= ' (APK)';
+	}
+	$intro = sprintf( 'Descargá %s%s en español%s.', $t, $v ? " $v" : '', $para );
+	if ( $trads ) {
+		$intro .= " Traducción de $trads.";
+	}
+	$post = get_post( $post_id );
+	$syn  = has_excerpt( $post ) ? get_the_excerpt( $post ) : wp_strip_all_tags( strip_shortcodes( $post->post_content ) );
+	$text = trim( $intro . ' ' . preg_replace( '/\s+/', ' ', $syn ) );
+	// ~155 caracteres, cortando en palabra.
+	if ( mb_strlen( $text ) > 158 ) {
+		$text = rtrim( mb_substr( $text, 0, 155 ) );
+		$text = preg_replace( '/\s+\S*$/u', '', $text ) . '…';
+	}
+	return $text;
 }
 
 add_filter( 'document_title_parts', function ( $parts ) {
@@ -55,13 +133,13 @@ add_filter( 'document_title_parts', function ( $parts ) {
 function ezc_meta_description() {
 	if ( is_singular() ) {
 		$post = get_queried_object();
-		$text = has_excerpt( $post ) ? get_the_excerpt( $post ) : wp_strip_all_tags( strip_shortcodes( $post->post_content ) );
-		if ( '' === trim( $text ) && 'juego' === $post->post_type ) {
-			$text = 'Descarga ' . get_the_title( $post ) . ' traducido al español gratis en Eclipse Zone.';
+		if ( 'juego' === $post->post_type ) {
+			return ezc_game_description( $post->ID );
 		}
+		$text = has_excerpt( $post ) ? get_the_excerpt( $post ) : wp_strip_all_tags( strip_shortcodes( $post->post_content ) );
 	} elseif ( is_tax() || is_category() || is_tag() ) {
 		$term = get_queried_object();
-		$text = $term->description ?: sprintf( 'Juegos de %s traducidos al español en Eclipse Zone.', $term->name );
+		$text = $term->description ?: sprintf( 'Descargá juegos de %s en español para PC y Android (APK). %d juegos traducidos al español en Eclipse Zone.', $term->name, $term->count );
 	} else {
 		$text = get_bloginfo( 'description' );
 	}
@@ -217,6 +295,8 @@ function ezc_schema() {
 			$base['gamePlatform']  = wp_get_post_terms( $id, 'plataforma', array( 'fields' => 'names' ) );
 			$base['genre']         = wp_get_post_terms( $id, 'genero', array( 'fields' => 'names' ) );
 			$base['softwareVersion'] = get_post_meta( $id, 'ez_version', true ) ?: null;
+			$base['alternateName']   = ezc_game_search_names( $id );
+			$base['description']     = ezc_game_description( $id );
 			$base['translator']    = array_map( function ( $n ) {
 				return array( '@type' => 'Person', 'name' => $n );
 			}, wp_get_post_terms( $id, 'traductor', array( 'fields' => 'names' ) ) );

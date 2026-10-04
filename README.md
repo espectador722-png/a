@@ -98,6 +98,13 @@ Ya incluido:
 - **IndexNow**: avisa a Bing/Yandex al publicar o actualizar (no durante importaciones masivas ni en copias locales). La clave se sirve sola en `/<clave>.txt`.
 - `noindex` en búsquedas, filtros y `/mi-cuenta/`.
 
+Búsquedas tipo "juego X en español" / "juego X APK en español":
+- Título: `X v0.1 en Español APK` (solo Android/JoiPlay), `… en Español PC y APK` (ambos) o `… en Español PC`.
+- Meta description con versión, plataformas y traductor delante de la sinopsis.
+- Párrafo visible al inicio de la ficha con "X en español" y "X APK en español" (Google pesa más lo visible).
+- `alternateName` en el schema VideoGame con las variantes de búsqueda.
+- Con Rank Math/Yoast se usan el mismo título y descripción, salvo que escribas una a mano.
+
 Lo que hacés vos al publicar:
 1. **Ajustes → Lectura**: dejar **desmarcado** "Disuadir a los motores de búsqueda".
 2. **Search Console**: agregar el dominio y enviar el sitemap (`/wp-sitemap.xml`, o `/sitemap_index.xml` si usás Rank Math).

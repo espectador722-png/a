@@ -35,7 +35,8 @@ $ez_link_btn = function ( $l, $direct = false ) use ( $ez_sizes ) {
 	);
 };
 ?>
-<h2 class="dl-title">Descargar <?php the_title(); ?> en español</h2>
+<?php $ez_plat = function_exists( 'ezc_game_platforms' ) ? ezc_game_platforms( $ez_id ) : array( 'android' => false ); ?>
+<h2 class="dl-title">Descargar <?php the_title(); ?> en español<?php echo ! empty( $ez_plat['solo_android'] ) ? ' APK' : ( $ez_plat['android'] && ! empty( $ez_plat['pc'] ) ? ' (PC y APK)' : '' ); ?></h2>
 
 <?php if ( $ez_excl && ! $ez_member ) : ?>
 	<div class="dl-lock">

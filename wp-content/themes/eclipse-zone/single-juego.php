@@ -33,8 +33,28 @@ while ( have_posts() ) :
 			<article>
 				<h1><?php echo esc_html( ezc_game_title( $ez_id ) ); ?></h1>
 				<?php if ( $ez_cover ) : ?>
-					<img class="game__cover" src="<?php echo esc_url( $ez_cover ); ?>" alt="<?php echo esc_attr( get_the_title() ); ?>" width="1280" height="720" fetchpriority="high">
+					<img class="game__cover" src="<?php echo esc_url( $ez_cover ); ?>" alt="<?php echo esc_attr( get_the_title() . ' en español' ); ?>" width="1280" height="720" fetchpriority="high">
 				<?php endif; ?>
+				<?php
+				// Texto visible con las búsquedas reales ("X en español", "X APK en español"):
+				// Google le da más peso a lo que se ve que a las etiquetas ocultas.
+				$ez_p     = ezc_game_platforms( $ez_id );
+				$ez_v     = ezc_game_version( $ez_id );
+				$ez_trads = ezt_term_names( $ez_id, 'traductor' );
+				$ez_t     = get_the_title();
+				?>
+				<?php
+				$ez_intro = '<strong>' . esc_html( $ez_t ) . ' en español</strong>' . ( $ez_v ? esc_html( " ($ez_v)" ) : '' )
+					. ( $ez_p['lista'] ? esc_html( ' para ' . $ez_p['lista'] ) : '' ) . '.';
+				if ( $ez_p['android'] ) {
+					$ez_intro .= ' Podés descargar <strong>' . esc_html( $ez_t ) . ' APK en español</strong>'
+						. ( $ez_p['pc'] ? ' para Android o la versión de PC.' : ' para Android' . ( preg_match( '/joiplay/i', $ez_p['lista'] ) ? ' y JoiPlay.' : '.' ) );
+				}
+				if ( $ez_trads ) {
+					$ez_intro .= esc_html( " Traducción al español de $ez_trads." );
+				}
+				?>
+				<p class="game__intro"><?php echo $ez_intro; // phpcs:ignore WordPress.Security.EscapeOutput -- partes escapadas arriba ?></p>
 				<div class="game__content"><?php the_content(); ?></div>
 				<?php echo ezt_reactions_html( $ez_id ); // phpcs:ignore WordPress.Security.EscapeOutput -- escapado en la función ?>
 

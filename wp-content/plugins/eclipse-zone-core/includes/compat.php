@@ -27,6 +27,14 @@ add_filter( 'rank_math/frontend/title', function ( $title ) {
 	return $title;
 } );
 
+// Descripción con plataformas/versión/traductor si no se escribió una a mano.
+add_filter( 'rank_math/frontend/description', function ( $desc ) {
+	return is_singular( 'juego' ) && ! get_post_meta( get_queried_object_id(), 'rank_math_description', true ) ? ezc_game_description( get_queried_object_id() ) : $desc;
+} );
+add_filter( 'wpseo_metadesc', function ( $desc ) {
+	return is_singular( 'juego' ) && ! $desc ? ezc_game_description( get_queried_object_id() ) : $desc;
+} );
+
 add_filter( 'rank_math/opengraph/facebook/image', function ( $img ) {
 	return $img ?: ( ezc_og_image_data()['url'] ?? $img );
 } );
