@@ -20,7 +20,7 @@
 	if (EZ.vista) {
 		EZ.post('vista', { id: EZ.vista }).then(function (r) {
 			document.querySelectorAll('[data-ez-views]').forEach(function (el) {
-				el.textContent = r.vistas.toLocaleString('es');
+				el.textContent = r.vistas.toLocaleString('es') + (r.vistas === 1 ? ' vista' : ' vistas');
 			});
 		}).catch(function () {});
 	}
@@ -79,6 +79,61 @@
 		});
 	});
 
+	// ── Ventana de descargas (<dialog>) ────────────────────────
+	document.addEventListener('click', function (e) {
+		var open = e.target.closest('[data-ez-dialog]');
+		if (open) {
+			var dlg = document.getElementById(open.dataset.ezDialog);
+			if (dlg && dlg.showModal) { dlg.showModal(); }
+			else if (dlg) { dlg.setAttribute('open', ''); }
+			return;
+		}
+		if (e.target.closest('[data-ez-dialog-close]')) {
+			e.target.closest('dialog').close();
+			return;
+		}
+		// Clic en el fondo oscuro = cerrar.
+		if (e.target.tagName === 'DIALOG') {
+			var r = e.target.getBoundingClientRect();
+			if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) e.target.close();
+		}
+	});
+
+	// ── Filtros del catálogo: cambiar un select filtra al toque ─
+	var filters = document.querySelector('[data-ez-filters]');
+	function clean() {
+		filters.querySelectorAll('select, input[name="q"]').forEach(function (f) {
+			f.disabled = !f.value || (f.name === 'orden' && f.value === 'recientes');
+		});
+	}
+	if (filters) {
+		filters.addEventListener('change', function (e) {
+			if (e.target.tagName !== 'SELECT') return;
+			// No mandar campos vacíos: URLs más limpias (?genero=rpg en vez de ?q=&genero=rpg&motor=…).
+			clean();
+			filters.submit();
+		});
+		filters.addEventListener('submit', function () {
+			clean();
+		});
+	}
+
+	// ── Página de Tags: filtrar chips escribiendo ──────────────
+	var tagFilter = document.querySelector('[data-ez-tag-filter]');
+	if (tagFilter) {
+		tagFilter.addEventListener('input', function () {
+			var q = tagFilter.value.trim().toLowerCase();
+			document.querySelectorAll('.tags-group').forEach(function (g) {
+				var any = false;
+				g.querySelectorAll('li').forEach(function (li) {
+					var hit = !q || li.textContent.toLowerCase().indexOf(q) !== -1;
+					li.hidden = !hit; any = any || hit;
+				});
+				g.hidden = !any;
+			});
+		});
+	}
+
 	// ── Clics: favoritos, leído, votos ─────────────────────────
 	function needLogin() { if (!EZ.logged) { location.href = EZ.login; return true; } return false; }
 
@@ -106,6 +161,22 @@
 				read.closest('li').classList.toggle('is-read', leido);
 			}).catch(function () { alert('No se pudo guardar. Probá de nuevo.'); })
 				.finally(function () { read.disabled = false; });
+			return;
+		}
+
+		var react = e.target.closest('[data-ez-react] button');
+		if (react) {
+			if (needLogin()) return;
+			var bar = react.closest('[data-ez-react]');
+			react.disabled = true;
+			EZ.post('reaccion', { id: +bar.dataset.ezReact, emoji: react.value }).then(function (r) {
+				bar.querySelectorAll('button').forEach(function (b) {
+					var n = r.counts[b.value] || 0;
+					b.setAttribute('aria-pressed', r.mias.indexOf(b.value) !== -1 ? 'true' : 'false');
+					b.querySelector('b').textContent = n ? n.toLocaleString('es') : '';
+				});
+			}).catch(function () { alert('No se pudo guardar la reacción.'); })
+				.finally(function () { react.disabled = false; });
 			return;
 		}
 

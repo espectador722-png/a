@@ -32,7 +32,7 @@ function ezc_register_content_types() {
 		'has_archive'   => 'juegos',
 		'rewrite'       => array( 'slug' => 'juego', 'with_front' => false ),
 		'menu_icon'     => 'dashicons-games',
-		'supports'      => array( 'title', 'editor', 'excerpt', 'thumbnail', 'custom-fields', 'revisions' ),
+		'supports'      => array( 'title', 'editor', 'excerpt', 'thumbnail', 'custom-fields', 'revisions', 'comments' ),
 		'show_in_rest'  => true,
 		'menu_position' => 5,
 	) );
@@ -48,7 +48,7 @@ function ezc_register_content_types() {
 		'has_archive'  => 'noticias',
 		'rewrite'      => array( 'slug' => 'noticia', 'with_front' => false ),
 		'menu_icon'    => 'dashicons-megaphone',
-		'supports'     => array( 'title', 'editor', 'excerpt', 'thumbnail', 'author', 'revisions' ),
+		'supports'     => array( 'title', 'editor', 'excerpt', 'thumbnail', 'author', 'revisions', 'comments' ),
 		'taxonomies'   => array( 'post_tag' ),
 		'show_in_rest' => true,
 		'menu_position' => 6,

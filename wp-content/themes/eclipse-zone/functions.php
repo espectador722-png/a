@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'EZT_VERSION', '0.3.0' );
+define( 'EZT_VERSION', '0.5.0' );
 
 add_action( 'after_setup_theme', function () {
 	add_theme_support( 'title-tag' );
@@ -18,11 +18,27 @@ add_action( 'after_setup_theme', function () {
 	add_theme_support( 'custom-logo' );
 } );
 
-// Página "Mi cuenta" (favoritos, seguir leyendo): se crea sola al activar el tema
-// y usa la plantilla page-mi-cuenta.php.
-add_action( 'after_switch_theme', function () {
-	if ( ! get_page_by_path( 'mi-cuenta' ) ) {
-		wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Mi cuenta', 'post_name' => 'mi-cuenta' ) );
+// Páginas del tema (cada una usa su plantilla page-<slug>.php). Se crean
+// solas al activar o actualizar el tema; si las borrás, se vuelven a crear
+// solo en la próxima actualización.
+const EZT_PAGES = array(
+	'mi-cuenta' => 'Mi cuenta',
+	'tags'      => 'Tags',
+	'tops'      => 'Tops',
+	'membresia' => 'Membresía',
+);
+function ezt_create_pages() {
+	foreach ( EZT_PAGES as $slug => $title ) {
+		if ( ! get_page_by_path( $slug ) ) {
+			wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => $title, 'post_name' => $slug, 'comment_status' => 'closed' ) );
+		}
+	}
+	update_option( 'ezt_pages_version', EZT_VERSION );
+}
+add_action( 'after_switch_theme', 'ezt_create_pages' );
+add_action( 'init', function () {
+	if ( get_option( 'ezt_pages_version' ) !== EZT_VERSION ) {
+		ezt_create_pages();
 	}
 } );
 
@@ -49,6 +65,9 @@ add_action( 'wp_enqueue_scripts', function () {
 		'login'  => wp_login_url( is_singular() ? get_permalink() : home_url( '/' ) ),
 		'vista'  => is_singular( array( 'juego', 'manga' ) ) ? get_queried_object_id() : 0,
 	) );
+	if ( is_singular() && comments_open() && get_option( 'thread_comments' ) ) {
+		wp_enqueue_script( 'comment-reply' );
+	}
 	if ( is_singular( 'manga' ) && function_exists( 'ezc_manga_pages' ) && ezc_manga_pages() ) {
 		wp_enqueue_script( 'ez-lector', get_theme_file_uri( 'assets/lector.js' ), array( 'ez-ui' ), EZT_VERSION, array( 'in_footer' => true, 'strategy' => 'defer' ) );
 	}
@@ -137,3 +156,91 @@ function ezt_views_html( $post_id ) {
 	$v = function_exists( 'ezc_views' ) ? ezc_views( $post_id ) : 0;
 	return sprintf( '<span class="stat" title="%1$s vistas"><span aria-hidden="true">👁</span> %1$s</span>', esc_html( number_format_i18n( $v ) ) );
 }
+
+/** Traductores con su color: <span style="--c:#f472b6">Nombre</span>, … */
+function ezt_translators_html( $post_id ) {
+	$terms = get_the_terms( $post_id, 'traductor' );
+	if ( ! $terms || is_wp_error( $terms ) ) {
+		return '';
+	}
+	return implode( ', ', array_map( function ( $t ) {
+		$color = function_exists( 'ezc_translator_color' ) ? ezc_translator_color( $t ) : '#c4b5fd';
+		return sprintf( '<span class="trad" style="--c:%s">%s</span>', esc_attr( $color ), esc_html( $t->name ) );
+	}, $terms ) );
+}
+
+/** Barra de reacciones con emojis (👍 ❤️ 🔥 😂 😮 😢) y sus totales. */
+function ezt_reactions_html( $post_id ) {
+	if ( ! function_exists( 'ezc_reactions' ) ) {
+		return '';
+	}
+	$counts = ezc_reaction_counts( $post_id );
+	$mias   = ezc_user_reactions( $post_id );
+	$out    = '<div class="reactions" data-ez-react="' . (int) $post_id . '" role="group" aria-label="Reacciones">';
+	foreach ( ezc_reactions() as $key => $emoji ) {
+		$n    = (int) ( $counts[ $key ] ?? 0 );
+		$out .= sprintf(
+			'<button type="button" value="%1$s" aria-pressed="%2$s" aria-label="%1$s: %4$d"><span aria-hidden="true">%3$s</span> <b>%5$s</b></button>',
+			esc_attr( $key ),
+			in_array( $key, $mias, true ) ? 'true' : 'false',
+			$emoji,
+			$n,
+			$n ? esc_html( number_format_i18n( $n ) ) : ''
+		);
+	}
+	return $out . '</div>';
+}
+
+/** Un comentario en la lista (callback de wp_list_comments). */
+function ezt_comment( $comment, $args, $depth ) {
+	$tag = 'div' === $args['style'] ? 'div' : 'li';
+	?>
+	<<?php echo $tag; // phpcs:ignore ?> id="comment-<?php comment_ID(); ?>" <?php comment_class( 'comment' ); ?>>
+		<article class="comment__body">
+			<header class="comment__head">
+				<?php echo get_avatar( $comment, 40, '', '', array( 'class' => 'comment__avatar' ) ); ?>
+				<span class="comment__author"><?php comment_author(); ?></span>
+				<time class="comment__date" datetime="<?php comment_time( 'c' ); ?>"><?php echo esc_html( 'hace ' . human_time_diff( get_comment_time( 'U', true ), time() ) ); ?></time>
+			</header>
+			<?php if ( '0' === $comment->comment_approved ) : ?>
+				<p class="comment__pending">Tu comentario está esperando aprobación.</p>
+			<?php endif; ?>
+			<div class="comment__text"><?php comment_text(); ?></div>
+			<?php
+			comment_reply_link( array_merge( $args, array(
+				'depth'     => $depth,
+				'max_depth' => $args['max_depth'],
+				'before'    => '<div class="comment__reply">',
+				'after'     => '</div>',
+			) ) );
+			?>
+		</article>
+	<?php
+	// wp_list_comments cierra la etiqueta.
+}
+
+/** Estrellas para votar (1-5), resultado y vistas. */
+function ezt_vote_html( $post_id ) {
+	if ( ! function_exists( 'ezc_rating' ) ) {
+		return '';
+	}
+	$r     = ezc_rating( $post_id );
+	$tuyo  = ezc_user_vote( $post_id );
+	$views = ezc_views( $post_id );
+	$out   = '<div class="vote" data-ez-vote="' . (int) $post_id . '"><div class="vote__stars" role="group" aria-label="Puntuar del 1 al 5">';
+	for ( $i = 1; $i <= 5; $i++ ) {
+		$out .= sprintf( '<button type="button" value="%1$d" aria-label="%1$d de 5" aria-pressed="%2$s">★</button>', $i, $i <= $tuyo ? 'true' : 'false' );
+	}
+	$out .= '</div><p class="vote__result" data-ez-vote-result>';
+	$out .= $r['votos']
+		? esc_html( sprintf( '%s de 5 · %d %s', number_format_i18n( $r['media'], 1 ), $r['votos'], 1 === $r['votos'] ? 'voto' : 'votos' ) . ( $tuyo ? ' · tu voto: ' . $tuyo : '' ) )
+		: 'Sin votos todavía. ¡Sé el primero!';
+	$out .= '</p><p class="vote__views"><span aria-hidden="true">👁</span> <span data-ez-views>' . esc_html( number_format_i18n( $views ) . ( 1 === $views ? ' vista' : ' vistas' ) ) . '</span></p></div>';
+	return $out;
+}
+
+// La barra negra de WordPress solo para quien administra: a los lectores les
+// tapaba el menú.
+add_filter( 'show_admin_bar', function ( $show ) {
+	return $show && current_user_can( 'edit_posts' );
+} );

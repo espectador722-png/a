@@ -24,7 +24,7 @@ $ez_term  = is_tax( 'etiqueta' ) ? get_queried_object() : null;
 	?>
 
 	<?php if ( have_posts() ) : ?>
-		<div class="grid">
+		<div class="grid grid--manga">
 			<?php
 			while ( have_posts() ) {
 				the_post();

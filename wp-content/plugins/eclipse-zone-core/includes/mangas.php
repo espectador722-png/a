@@ -34,7 +34,7 @@ function ezc_register_mangas() {
 		'has_archive'   => 'mangas',
 		'rewrite'       => array( 'slug' => 'manga', 'with_front' => false ),
 		'menu_icon'     => 'dashicons-book-alt',
-		'supports'      => array( 'title', 'editor', 'excerpt', 'thumbnail', 'page-attributes', 'revisions' ),
+		'supports'      => array( 'title', 'editor', 'excerpt', 'thumbnail', 'page-attributes', 'revisions', 'comments' ),
 		'show_in_rest'  => true,
 		'menu_position' => 7,
 	) );

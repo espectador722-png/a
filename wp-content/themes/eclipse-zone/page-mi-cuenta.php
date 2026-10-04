@@ -16,10 +16,41 @@ $ez_history = ezc_user_history( 12 );
 		<p><a href="<?php echo esc_url( get_edit_profile_url() ); ?>">Editar perfil y contraseña</a> · <a href="<?php echo esc_url( wp_logout_url( home_url( '/' ) ) ); ?>">Salir</a></p>
 	</header>
 
+	<?php
+	$ez_msgs = array(
+		'ok'            => array( 'ok', '¡Conectado con Patreon! Ya tenés descargas directas y exclusivos 💎' ),
+		'sin-membresia' => array( 'warn', 'Tu cuenta de Patreon no tiene una membresía activa todavía.' ),
+		'cancelado'     => array( 'info', 'Conexión con Patreon cancelada.' ),
+		'error'         => array( 'warn', 'No se pudo verificar con Patreon. Probá de nuevo.' ),
+		'desconectado'  => array( 'info', 'Patreon desconectado.' ),
+	);
+	$ez_flag = isset( $_GET['patreon'] ) ? sanitize_key( $_GET['patreon'] ) : '';
+	if ( isset( $ez_msgs[ $ez_flag ] ) ) {
+		printf( '<p class="notice notice--%s">%s</p>', esc_attr( $ez_msgs[ $ez_flag ][0] ), esc_html( $ez_msgs[ $ez_flag ][1] ) );
+	}
+	$ez_p = get_user_meta( get_current_user_id(), '_ez_patreon', true );
+	?>
+	<section class="panel patreon-box">
+		<h2>💎 Patreon</h2>
+		<?php if ( function_exists( 'ezc_is_member' ) && ezc_is_member() ) : ?>
+			<p class="member-status member-status--ok">✓ Membresía activa<?php echo current_user_can( 'edit_posts' ) && empty( $ez_p['connected'] ) ? ' (acceso de editor)' : ''; ?>.</p>
+		<?php else : ?>
+			<p>Conectá tu cuenta de Patreon para descargar sin acortadores y acceder a los exclusivos.</p>
+		<?php endif; ?>
+		<p class="member-actions">
+			<?php if ( empty( $ez_p['connected'] ) ) : ?>
+				<a class="btn btn--patreon" href="<?php echo esc_url( home_url( '/patreon/conectar/' ) ); ?>">Conectar con Patreon</a>
+				<a class="btn btn--ghost" href="<?php echo esc_url( home_url( '/membresia/' ) ); ?>">Beneficios</a>
+			<?php else : ?>
+				<a class="btn btn--ghost" href="<?php echo esc_url( wp_nonce_url( home_url( '/patreon/desconectar/' ), 'ez_patreon_off' ) ); ?>">Desconectar Patreon</a>
+			<?php endif; ?>
+		</p>
+	</section>
+
 	<section class="section">
 		<h2>Seguir leyendo</h2>
 		<?php if ( $ez_history ) : ?>
-			<div class="grid">
+			<div class="grid grid--manga">
 				<?php
 				foreach ( $ez_history as $post ) {
 					setup_postdata( $post );
@@ -36,7 +67,7 @@ $ez_history = ezc_user_history( 12 );
 	<section class="section">
 		<h2>Mis favoritos</h2>
 		<?php if ( $ez_favs ) : ?>
-			<div class="grid">
+			<div class="grid grid--games">
 				<?php
 				foreach ( $ez_favs as $post ) {
 					setup_postdata( $post );

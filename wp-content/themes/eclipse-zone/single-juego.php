@@ -33,9 +33,30 @@ while ( have_posts() ) :
 			<article>
 				<h1><?php echo esc_html( ezc_game_title( $ez_id ) ); ?></h1>
 				<?php if ( $ez_cover ) : ?>
-					<img class="game__cover" src="<?php echo esc_url( $ez_cover ); ?>" alt="<?php echo esc_attr( get_the_title() ); ?>" width="1280" height="720" fetchpriority="high">
+					<img class="game__cover" src="<?php echo esc_url( $ez_cover ); ?>" alt="<?php echo esc_attr( get_the_title() . ' en español' ); ?>" width="1280" height="720" fetchpriority="high">
 				<?php endif; ?>
+				<?php
+				// Texto visible con las búsquedas reales ("X en español", "X APK en español"):
+				// Google le da más peso a lo que se ve que a las etiquetas ocultas.
+				$ez_p     = ezc_game_platforms( $ez_id );
+				$ez_v     = ezc_game_version( $ez_id );
+				$ez_trads = ezt_term_names( $ez_id, 'traductor' );
+				$ez_t     = get_the_title();
+				?>
+				<?php
+				$ez_intro = '<strong>' . esc_html( $ez_t ) . ' en español</strong>' . ( $ez_v ? esc_html( " ($ez_v)" ) : '' )
+					. ( $ez_p['lista'] ? esc_html( ' para ' . $ez_p['lista'] ) : '' ) . '.';
+				if ( $ez_p['android'] ) {
+					$ez_intro .= ' Podés descargar <strong>' . esc_html( $ez_t ) . ' APK en español</strong>'
+						. ( $ez_p['pc'] ? ' para Android o la versión de PC.' : ' para Android' . ( preg_match( '/joiplay/i', $ez_p['lista'] ) ? ' y JoiPlay.' : '.' ) );
+				}
+				if ( $ez_trads ) {
+					$ez_intro .= esc_html( " Traducción al español de $ez_trads." );
+				}
+				?>
+				<p class="game__intro"><?php echo $ez_intro; // phpcs:ignore WordPress.Security.EscapeOutput -- partes escapadas arriba ?></p>
 				<div class="game__content"><?php the_content(); ?></div>
+				<?php echo ezt_reactions_html( $ez_id ); // phpcs:ignore WordPress.Security.EscapeOutput -- escapado en la función ?>
 
 				<?php if ( $ez_shots ) : ?>
 					<h2>Capturas de <?php the_title(); ?></h2>
@@ -51,41 +72,14 @@ while ( have_posts() ) :
 				<dl class="facts">
 					<?php foreach ( $ez_facts as $label => $value ) : ?>
 						<dt><?php echo esc_html( $label ); ?></dt>
-						<dd><?php echo esc_html( $value ); ?></dd>
+						<dd><?php echo 'Traductor' === $label ? ezt_translators_html( $ez_id ) : esc_html( $value ); // phpcs:ignore WordPress.Security.EscapeOutput ?></dd>
 					<?php endforeach; ?>
 				</dl>
 				<?php echo ezt_chips( $ez_id, 'genero' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escapado en ezt_chips ?>
 
-				<?php
-				$ez_r    = ezc_rating( $ez_id );
-				$ez_tuyo = ezc_user_vote( $ez_id );
-				?>
-				<div class="vote" data-ez-vote="<?php echo (int) $ez_id; ?>">
-					<div class="vote__stars" role="group" aria-label="Puntuar del 1 al 5">
-						<?php for ( $i = 1; $i <= 5; $i++ ) : ?>
-							<button type="button" value="<?php echo (int) $i; ?>" aria-label="<?php echo (int) $i; ?> de 5" aria-pressed="<?php echo $i <= $ez_tuyo ? 'true' : 'false'; ?>">★</button>
-						<?php endfor; ?>
-					</div>
-					<p class="vote__result" data-ez-vote-result>
-						<?php
-						echo $ez_r['votos']
-							? esc_html( sprintf( '%s de 5 · %d %s', number_format_i18n( $ez_r['media'], 1 ), $ez_r['votos'], 1 === $ez_r['votos'] ? 'voto' : 'votos' ) . ( $ez_tuyo ? ' · tu voto: ' . $ez_tuyo : '' ) )
-							: 'Sin votos todavía. ¡Sé el primero!';
-						?>
-					</p>
-					<p class="vote__views"><span aria-hidden="true">👁</span> <span data-ez-views><?php echo esc_html( number_format_i18n( ezc_views( $ez_id ) ) ); ?></span> <?php echo 1 === ezc_views( $ez_id ) ? 'vista' : 'vistas'; ?></p>
-				</div>
+				<?php echo ezt_vote_html( $ez_id ); // phpcs:ignore WordPress.Security.EscapeOutput -- escapado en la función ?>
 
-				<h2 style="margin-top:20px">Descargar <?php the_title(); ?> en español</h2>
-				<?php if ( $ez_links ) : ?>
-					<div class="downloads">
-						<?php foreach ( $ez_links as $l ) : ?>
-							<a class="btn" href="<?php echo esc_url( $l['url'] ); ?>" rel="nofollow noopener" target="_blank"><?php echo esc_html( $l['nombre'] ?: 'Descargar' ); ?></a>
-						<?php endforeach; ?>
-					</div>
-				<?php else : ?>
-					<p>Descarga no disponible por ahora.</p>
-				<?php endif; ?>
+				<?php get_template_part( 'template-parts/descargas' ); ?>
 
 				<?php if ( is_user_logged_in() ) : ?>
 					<p style="margin-top:12px">
@@ -124,6 +118,12 @@ while ( have_posts() ) :
 				</div>
 			</section>
 		<?php endif; ?>
+
+		<?php
+		if ( comments_open() || get_comments_number() ) {
+			comments_template();
+		}
+		?>
 	</div>
 	<?php
 endwhile;

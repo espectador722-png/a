@@ -19,7 +19,7 @@ $ez_desc    = wp_trim_words( wp_strip_all_tags( get_the_excerpt() ), 18, '…' )
 <article class="gcard">
 	<div class="gcard__main">
 		<header class="gcard__top">
-			<span class="gcard__trad"><?php echo esc_html( $ez_trad ?: 'Eclipse Zone' ); ?></span>
+			<span class="gcard__trad"><?php echo $ez_trad ? ezt_translators_html( $ez_id ) : 'Eclipse Zone'; // phpcs:ignore WordPress.Security.EscapeOutput -- escapado en la función ?></span>
 			<span class="gcard__flag" title="Traducido al español">🇪🇸</span>
 		</header>
 		<div class="gcard__media">
@@ -35,6 +35,7 @@ $ez_desc    = wp_trim_words( wp_strip_all_tags( get_the_excerpt() ), 18, '…' )
 				<?php endif; ?>
 				<?php if ( $ez_version ) : ?><span class="tag tag--version"><?php echo esc_html( $ez_version ); ?></span><?php endif; ?>
 			</span>
+			<?php if ( function_exists( 'ezc_is_exclusive' ) && ezc_is_exclusive( $ez_id ) ) : ?><span class="tag tag--excl" title="Exclusivo de Patreon">💎</span><?php endif; ?>
 			<?php if ( function_exists( 'ezc_is_favorite' ) && ezc_is_favorite( $ez_id ) ) : ?><span class="card__fav" title="Favorito">★</span><?php endif; ?>
 		</div>
 		<div class="gcard__body">
@@ -44,6 +45,7 @@ $ez_desc    = wp_trim_words( wp_strip_all_tags( get_the_excerpt() ), 18, '…' )
 		<footer class="gcard__stats">
 			<span class="stat" title="Última actualización"><span aria-hidden="true">🕒</span> <?php echo esc_html( ezt_ago() ); ?></span>
 			<span class="gcard__nums">
+				<span class="stat" title="Comentarios"><span aria-hidden="true">💬</span> <?php echo (int) get_comments_number( $ez_id ); ?></span>
 				<?php echo ezt_views_html( $ez_id ); // phpcs:ignore WordPress.Security.EscapeOutput -- escapado en la función ?>
 				<?php echo ezt_rating_html( $ez_id ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 			</span>

@@ -14,6 +14,7 @@ while ( have_posts() ) :
 				<img src="<?php echo esc_url( $ez_img ); ?>" alt="" style="border-radius:12px;margin-bottom:20px" width="1200" height="630" fetchpriority="high">
 			<?php endif; ?>
 			<div class="entry__content"><?php the_content(); ?></div>
+			<?php echo ezt_reactions_html( get_the_ID() ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 			<?php
 			$ez_tags = get_the_tags();
 			if ( $ez_tags ) :
@@ -28,6 +29,11 @@ while ( have_posts() ) :
 				<?php previous_post_link( '%link', '‹ %title' ); ?>
 				<?php next_post_link( '%link', '%title ›' ); ?>
 			</nav>
+			<?php
+			if ( comments_open() || get_comments_number() ) {
+				comments_template();
+			}
+			?>
 		</article>
 	</div>
 	<?php
