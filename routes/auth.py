@@ -28,6 +28,7 @@ from flask import (
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from config import Config
+from routes import actividad
 from routes.helpers import load_json, save_json
 
 logger = logging.getLogger(__name__)
@@ -50,6 +51,7 @@ PREFIJOS_ADMIN = (
     "/api/manga/exportar",
     "/manga-sorteo",
     "/usuarios", "/api/usuarios",
+    "/api/actividad",
 )
 
 # Únicas escrituras (POST/PUT/PATCH/DELETE) permitidas a un lector.
@@ -272,6 +274,7 @@ def login_post():
     if not u or not check_password_hash(u["hash"], password):
         _registrar_fallo(ip)
         logger.warning("Login fallido para '%s' desde %s", nombre, ip)
+        actividad.registrar(nombre[:64], "login fallido", ok=False)
         return jsonify({"error": "usuario o contraseña incorrectos"}), 401
 
     _fallos.pop(ip, None)
@@ -279,6 +282,7 @@ def login_post():
     session.permanent = True
     session["usuario"] = u["usuario"]
     session["version"] = u.get("version", 0)
+    actividad.registrar(u["usuario"], "login")
     return jsonify({"success": True, "usuario": _publico(u),
                     "next": _url_segura(data.get("next"))})
 
@@ -382,6 +386,24 @@ def api_usuarios_borrar(nombre):
     return jsonify({"success": True})
 
 
+def registrar_accion(response):
+    """after_request: anota en el registro de actividad cada acción de
+    administración (y los cambios de contraseña propios) que pasó la política."""
+    usuario = getattr(g, "usuario", None)
+    if not usuario or request.method in _METODOS_LECTURA:
+        return response
+    if not (requiere_admin(request.path, request.method) or request.path == "/api/me/password"):
+        return response
+    ok = response.status_code < 400
+    if ok and response.is_json:
+        cuerpo = response.get_json(silent=True)
+        if isinstance(cuerpo, dict) and cuerpo.get("success") is False:
+            ok = False
+    actividad.registrar(usuario["usuario"], f"{request.method} {request.path}",
+                        actividad.detalle_del_pedido(), ok=ok)
+    return response
+
+
 def configurar(app) -> None:
     """Conecta todo lo de acceso a la app (llamado desde create_app)."""
     app.secret_key = cargar_secret_key()
@@ -391,5 +413,7 @@ def configurar(app) -> None:
         PERMANENT_SESSION_LIFETIME=timedelta(days=Config.SESSION_DIAS),
     )
     app.register_blueprint(auth_bp)
+    app.register_blueprint(actividad.actividad_bp)
     app.before_request(politica)
+    app.after_request(registrar_accion)
     asegurar_admin_inicial()

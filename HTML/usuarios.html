@@ -35,6 +35,14 @@ td.acciones{text-align:right;white-space:nowrap}
 .yo{font-size:11px;color:var(--accent);margin-left:6px}
 .msg{font-size:13px;min-height:1.2em;margin-top:10px}
 .msg.error{color:var(--danger)}.msg.ok{color:var(--ok)}
+.act-head{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.act-head h2{margin:0;flex:1}
+.act{font-size:13px}
+.act td{padding:7px 6px}
+.act .cuando{color:var(--muted);white-space:nowrap}
+.act .det{color:var(--muted);word-break:break-word}
+.act .fallo{color:var(--danger)}
+.act .quien{font-weight:600}
 @media(max-width:560px){
   thead{display:none}
   tr{display:grid;grid-template-columns:1fr auto;gap:4px 10px;padding:10px 0;border-bottom:1px solid var(--border)}
@@ -72,6 +80,18 @@ td.acciones{text-align:right;white-space:nowrap}
       <tbody id="lista"><tr><td colspan="4">Cargando…</td></tr></tbody>
     </table>
     <div class="msg" id="msgLista"></div>
+  </div>
+
+  <div class="panel">
+    <div class="act-head">
+      <h2>Actividad reciente</h2>
+      <select id="filtroUsuario"><option value="">Todos los usuarios</option></select>
+      <button class="btn chico" id="recargarActividad" type="button"><i class="bi bi-arrow-clockwise"></i> Actualizar</button>
+    </div>
+    <table class="act">
+      <thead><tr><th>Cuándo</th><th>Quién</th><th>Qué</th><th>Detalle</th></tr></thead>
+      <tbody id="actividad"><tr><td colspan="4">Cargando…</td></tr></tbody>
+    </table>
   </div>
 </div>
 
@@ -173,7 +193,81 @@ document.getElementById('formNuevo').addEventListener('submit', async e => {
   }
 });
 
+// ── Actividad reciente ───────────────────────────────────────────────────────
+const ACCIONES = {
+  'login': 'Entró',
+  'login fallido': 'Intento de entrada fallido',
+  'POST /api/me/password': 'Cambió su contraseña',
+  'POST /delete_manga': 'Borró un manga',
+  'POST /api/manga/mover': 'Movió un manga',
+  'POST /api/manga/rename': 'Renombró un manga',
+  'POST /api/manga/serie': 'Cambió la serie',
+  'POST /api/mangas/agrupar_serie': 'Agrupó una serie',
+  'POST /add_manga_category': 'Agregó un tag',
+  'POST /remove_manga_category': 'Quitó un tag',
+  'POST /api/manga/exportar': 'Exportó un manga',
+  'POST /api/manga/abrir-carpeta': 'Abrió la carpeta',
+  'POST /api/manga/traductor/lote': 'Encoló traducciones',
+  'POST /api/descargas/hitomi/descargar': 'Descargó de hitomi',
+  'POST /api/descargas/3hentai/descargar': 'Descargó de 3hentai',
+  'POST /api/usuarios': 'Creó una cuenta',
+};
+function describirAccion(a) {
+  if (ACCIONES[a]) return ACCIONES[a];
+  let m;
+  if ((m = a.match(/^PATCH \/api\/usuarios\/(.+)$/))) return `Editó la cuenta ${decodeURIComponent(m[1])}`;
+  if ((m = a.match(/^DELETE \/api\/usuarios\/(.+)$/))) return `Borró la cuenta ${decodeURIComponent(m[1])}`;
+  if (a.startsWith('POST /api/colecciones') || a.startsWith('DELETE /api/colecciones')) return 'Cambió una colección';
+  if (a.startsWith('POST /api/categorias') || a.startsWith('DELETE /api/categorias')) return 'Cambió una categoría';
+  if (a.startsWith('POST /api/manga/traductor') || a.startsWith('DELETE /api/manga/traductor')) return 'Traductor';
+  return a;
+}
+function describirDetalle(d) {
+  if (!d) return '';
+  d = { ...d };
+  const partes = [];
+  if (d.manga_name && d.new_name) {
+    partes.push(`${d.manga_name} → ${d.new_name}`);
+    delete d.manga_name; delete d.new_name;
+  } else if (d.manga_name && d.destino) {
+    partes.push(`${d.manga_name} → ${d.destino}`);
+    delete d.manga_name; delete d.destino; delete d.origen;
+  } else if (d.manga_name) {
+    partes.push(d.manga_name);
+    delete d.manga_name;
+  }
+  for (const [k, v] of Object.entries(d)) {
+    partes.push(`${k}: ${Array.isArray(v) ? v.join(', ') : v}`);
+  }
+  return partes.join(' · ');
+}
+async function cargarActividad() {
+  const usuario = document.getElementById('filtroUsuario').value;
+  const { eventos } = await api('/api/actividad?limite=150' + (usuario ? '&usuario=' + encodeURIComponent(usuario) : ''));
+  const tbody = document.getElementById('actividad');
+  if (!eventos.length) { tbody.innerHTML = '<tr><td colspan="4" style="color:var(--muted)">Sin actividad todavía.</td></tr>'; return; }
+  tbody.innerHTML = eventos.map(e => `<tr>
+    <td class="cuando">${esc(new Date(e.fecha).toLocaleString())}</td>
+    <td class="quien">${esc(e.usuario)}</td>
+    <td class="${e.ok ? '' : 'fallo'}">${e.ok ? '' : '<i class="bi bi-x-circle"></i> '}${esc(describirAccion(e.accion))}</td>
+    <td class="det">${esc([describirDetalle(e.detalle), e.ip].filter(Boolean).join(' · '))}</td>
+  </tr>`).join('');
+}
+async function llenarFiltroUsuarios() {
+  const { usuarios } = await api('/api/usuarios');
+  const sel = document.getElementById('filtroUsuario');
+  const actual = sel.value;
+  sel.innerHTML = '<option value="">Todos los usuarios</option>' + usuarios
+    .map(u => u.usuario).sort((a, b) => a.localeCompare(b))
+    .map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  sel.value = actual;
+}
+document.getElementById('filtroUsuario').addEventListener('change', () => cargarActividad().catch(() => {}));
+document.getElementById('recargarActividad').addEventListener('click', () => cargarActividad().catch(() => {}));
+
 cargar().catch(err => aviso('msgLista', err.message));
+llenarFiltroUsuarios().catch(() => {});
+cargarActividad().catch(() => {});
 </script>
 </body>
 </html>

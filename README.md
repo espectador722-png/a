@@ -27,6 +27,7 @@ Todos entran con usuario y contraseña. Hay dos roles:
 | Traductor, exportar, abrir carpeta | | ✅ |
 | Duplicados y sorteo | | ✅ |
 | Crear y administrar usuarios (`/usuarios`) | | ✅ |
+| Ver el registro de actividad (`/usuarios`) | | ✅ |
 
 Los permisos se aplican en el servidor (`routes/auth.py`), no solo en la interfaz. Cualquier ruta nueva que modifique algo queda **solo para admin por defecto**. Para que un lector pueda usarla hay que agregarla a `ESCRITURA_LECTOR`.
 
@@ -35,6 +36,8 @@ Los permisos se aplican en el servidor (`routes/auth.py`), no solo en la interfa
 **Personal de cada usuario:** los favoritos ("Mis favoritos"), el progreso de lectura (barras, filtros "sin leer / en progreso / leído", "seguir leyendo") y el historial ("Últimos vistos"). Marcar un favorito no mueve ningún archivo: la carpeta física `Favoritos` quedó como una sección más ("Carpeta Favoritos").
 
 La primera vez que entra la cuenta `USUARIO_PRINCIPAL` (por defecto `senpai1940`), recibe lo que antes era compartido: los mangas de la carpeta Favoritos como favoritos, y el progreso y el historial de lectura. Pasa una sola vez.
+
+**Registro de actividad:** cada acción de administración (borrar, mover, renombrar, descargar, traducir, cuentas…), los inicios de sesión y los intentos fallidos quedan anotados con fecha, usuario e IP en `DATA_DIR/actividad.jsonl`. Se consulta desde `/usuarios`. Nunca guarda contraseñas: del pedido solo se copia una lista cerrada de campos.
 
 Las contraseñas se guardan con hash (nunca en claro). Tras 5 intentos fallidos desde la misma IP, el login se bloquea 5 minutos. Cambiar la contraseña o el rol de alguien cierra sus sesiones abiertas.
 
@@ -86,6 +89,7 @@ routes/
   colecciones.py    carpetas virtuales
   favoritos.py      favoritos personales de cada usuario
   progreso.py       progreso de lectura e historial de cada usuario
+  actividad.py      registro de quién hizo qué
   image_hash.py     duplicados por hash perceptual
   manga_export.py   CBZ / PDF
   manga_traductor*.py, cache_overflow.py   traductor (opcional)
