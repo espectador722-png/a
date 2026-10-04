@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'EZT_VERSION', '0.4.0' );
+define( 'EZT_VERSION', '0.5.0' );
 
 add_action( 'after_setup_theme', function () {
 	add_theme_support( 'title-tag' );
@@ -18,11 +18,27 @@ add_action( 'after_setup_theme', function () {
 	add_theme_support( 'custom-logo' );
 } );
 
-// Página "Mi cuenta" (favoritos, seguir leyendo): se crea sola al activar el tema
-// y usa la plantilla page-mi-cuenta.php.
-add_action( 'after_switch_theme', function () {
-	if ( ! get_page_by_path( 'mi-cuenta' ) ) {
-		wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Mi cuenta', 'post_name' => 'mi-cuenta' ) );
+// Páginas del tema (cada una usa su plantilla page-<slug>.php). Se crean
+// solas al activar o actualizar el tema; si las borrás, se vuelven a crear
+// solo en la próxima actualización.
+const EZT_PAGES = array(
+	'mi-cuenta' => 'Mi cuenta',
+	'tags'      => 'Tags',
+	'tops'      => 'Tops',
+	'membresia' => 'Membresía',
+);
+function ezt_create_pages() {
+	foreach ( EZT_PAGES as $slug => $title ) {
+		if ( ! get_page_by_path( $slug ) ) {
+			wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => $title, 'post_name' => $slug, 'comment_status' => 'closed' ) );
+		}
+	}
+	update_option( 'ezt_pages_version', EZT_VERSION );
+}
+add_action( 'after_switch_theme', 'ezt_create_pages' );
+add_action( 'init', function () {
+	if ( get_option( 'ezt_pages_version' ) !== EZT_VERSION ) {
+		ezt_create_pages();
 	}
 } );
 

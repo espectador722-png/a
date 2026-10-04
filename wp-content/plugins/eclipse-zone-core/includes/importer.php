@@ -5,6 +5,7 @@
  *
  * Admin:   Herramientas → Importar Eclipse Zone
  * WP-CLI:  wp eclipse importar juegos  [--fuente=<url|archivo>]
+ *          wp eclipse importar exclusivos [--fuente=<url|archivo>]
  *          wp eclipse importar noticias [--fuente=<url|archivo>]
  *
  * Re-importar actualiza los existentes (no duplica): cada entrada guarda
@@ -18,11 +19,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 const EZC_JUEGOS_URL   = 'https://gitlab.com/senpai1940/juegos/-/raw/main/juegos.json';
 const EZC_NOTICIAS_URL = 'https://gitlab.com/senpai1940/noticias/-/raw/main/noticias.json';
+// Privado: necesita el token de GitLab (Ajustes → Eclipse Zone).
+const EZC_EXCLUSIVOS_URL = 'https://gitlab.com/api/v4/projects/75579701/repository/files/exclusivos.json/raw?ref=main';
 
 /** Descarga o lee un JSON (URL o ruta local). */
 function ezc_load_json( $source ) {
 	if ( preg_match( '#^https?://#', $source ) ) {
-		$res = wp_remote_get( $source, array( 'timeout' => 60 ) );
+		$args  = array( 'timeout' => 60 );
+		$token = function_exists( 'ezc_patreon_opt' ) ? ezc_patreon_opt( 'gitlab_token' ) : '';
+		if ( $token && 'gitlab.com' === wp_parse_url( $source, PHP_URL_HOST ) ) {
+			$args['headers'] = array( 'PRIVATE-TOKEN' => $token );
+		}
+		$res = wp_remote_get( $source, $args );
 		if ( is_wp_error( $res ) ) {
 			return $res;
 		}
@@ -38,6 +46,84 @@ function ezc_load_json( $source ) {
 	}
 	$data = json_decode( $body, true );
 	return is_array( $data ) ? $data : new WP_Error( 'ezc_json', 'El archivo no es un JSON con una lista' );
+}
+
+/**
+ * Links de un juego del JSON → [{nombre, url, acortadores, traductor}].
+ * Acepta "links" (lista) y "linksPorTraductor" ({traductor: [links]}).
+ */
+function ezc_normalize_links( array $j ) {
+	$raw = array();
+	foreach ( (array) ( $j['links'] ?? array() ) as $l ) {
+		$raw[] = array( $l, '' );
+	}
+	foreach ( (array) ( $j['linksPorTraductor'] ?? array() ) as $trad => $list ) {
+		foreach ( (array) $list as $l ) {
+			$raw[] = array( $l, (string) $trad );
+		}
+	}
+	$links = array();
+	$seen  = array();
+	foreach ( $raw as list( $l, $trad ) ) {
+		$url = esc_url_raw( is_array( $l ) ? (string) ( $l['url'] ?? '' ) : (string) $l );
+		if ( ! $url || isset( $seen[ $url ] ) ) {
+			continue;
+		}
+		$seen[ $url ] = true;
+		$name         = is_array( $l ) ? ( $l['nombre'] ?? $l['name'] ?? $l['texto'] ?? $l['label'] ?? $l['plataforma'] ?? $l['servidor'] ?? '' ) : '';
+		$links[]      = array_filter( array(
+			'nombre'      => sanitize_text_field( (string) $name ),
+			'url'         => $url,
+			'acortadores' => is_array( $l ) ? absint( $l['acortadores'] ?? 0 ) : 0,
+			'traductor'   => sanitize_text_field( $trad ?: ( is_array( $l ) ? (string) ( $l['traductor'] ?? '' ) : '' ) ),
+		) );
+	}
+	return $links;
+}
+
+/**
+ * exclusivos.json: los mismos juegos con links directos (sin acortador) para
+ * los miembros. Se emparejan por título; si el juego no existe se crea como
+ * exclusivo.
+ */
+function ezc_import_exclusivos( $source = EZC_EXCLUSIVOS_URL ) {
+	$data = ezc_load_json( $source );
+	if ( is_wp_error( $data ) ) {
+		return $data;
+	}
+	$stats = array( 'creados' => 0, 'actualizados' => 0, 'omitidos' => 0 );
+	foreach ( $data as $j ) {
+		$titulo = trim( (string) ( $j['titulo'] ?? '' ) );
+		$links  = is_array( $j ) ? ezc_normalize_links( $j ) : array();
+		if ( '' === $titulo || ! $links ) {
+			$stats['omitidos']++;
+			continue;
+		}
+		$found = get_posts( array( 'post_type' => 'juego', 'name' => sanitize_title( $titulo ), 'post_status' => 'any', 'posts_per_page' => 1, 'fields' => 'ids' ) );
+		if ( $found ) {
+			$id = $found[0];
+			$stats['actualizados']++;
+		} else {
+			$id = wp_insert_post( wp_slash( array(
+				'post_type'    => 'juego',
+				'post_status'  => 'publish',
+				'post_title'   => $titulo,
+				'post_name'    => sanitize_title( $titulo ),
+				'post_content' => wp_kses_post( (string) ( $j['descripcion'] ?? '' ) ),
+			) ), true );
+			if ( is_wp_error( $id ) ) {
+				$stats['omitidos']++;
+				continue;
+			}
+			update_post_meta( $id, 'ez_exclusivo', '1' );
+			update_post_meta( $id, 'ez_version', sanitize_text_field( (string) ( $j['version'] ?? '' ) ) );
+			update_post_meta( $id, 'ez_imagen', esc_url_raw( (string) ( $j['imagen'] ?? ( ezc_as_list( $j['imagenes'] ?? array() )[0] ?? '' ) ) ) );
+			wp_set_object_terms( $id, ezc_as_list( $j['traductores'] ?? array() ), 'traductor' );
+			$stats['creados']++;
+		}
+		update_post_meta( $id, '_ez_links_directos', wp_json_encode( $links ) );
+	}
+	return $stats;
 }
 
 /** Nombre normalizado si el texto es un motor de juegos conocido. */
@@ -131,22 +217,22 @@ function ezc_import_juegos( $source = EZC_JUEGOS_URL ) {
 		}
 		$stats[ $existing ? 'actualizados' : 'creados' ]++;
 
-		$links = array();
-		if ( empty( $j['exclusivo'] ) ) {
-			foreach ( (array) ( $j['links'] ?? array() ) as $l ) {
-				$url = is_array( $l ) ? ( $l['url'] ?? '' ) : (string) $l;
-				if ( $url = esc_url_raw( $url ) ) {
-					$name    = is_array( $l ) ? ( $l['nombre'] ?? $l['name'] ?? $l['texto'] ?? $l['label'] ?? $l['plataforma'] ?? $l['servidor'] ?? '' ) : '';
-					$links[] = array( 'nombre' => sanitize_text_field( (string) $name ), 'url' => $url );
-				}
-			}
-		}
+		// Un juego "exclusivo" conserva sus links: la ficha solo se los muestra
+		// a los miembros de Patreon (antes se descartaban al importar).
+		$links = ezc_normalize_links( $j );
 		$imagenes = array_values( array_filter( array_map( 'esc_url_raw', ezc_as_list( $j['imagenes'] ?? array() ) ) ) );
 
 		update_post_meta( $id, 'ez_source_key', $keys[ $i ] );
+		update_post_meta( $id, 'ez_exclusivo', empty( $j['exclusivo'] ) ? '' : '1' );
+		update_post_meta( $id, 'ez_tamano_pc', sanitize_text_field( (string) ( $j['tamanoPc'] ?? '' ) ) );
+		update_post_meta( $id, 'ez_tamano_apk', sanitize_text_field( (string) ( $j['tamanoApk'] ?? '' ) ) );
 		update_post_meta( $id, 'ez_version', sanitize_text_field( (string) ( $j['version'] ?? '' ) ) );
 		update_post_meta( $id, 'ez_links', wp_json_encode( $links ) );
-		update_post_meta( $id, 'ez_imagenes', wp_json_encode( $imagenes ) );
+		// Si las capturas ya se copiaron al servidor (imagenes.php) y en el JSON
+		// no cambiaron, no volver a poner las URLs externas.
+		if ( get_post_meta( $id, '_ez_img_src', true ) !== wp_json_encode( $imagenes ) ) {
+			update_post_meta( $id, 'ez_imagenes', wp_json_encode( $imagenes ) );
+		}
 		update_post_meta( $id, 'ez_imagen', esc_url_raw( (string) ( $j['imagen'] ?? ( $imagenes[0] ?? '' ) ) ) );
 
 		// Motor: campo propio si existe; si no, sale de las categorías ("Ren'Py",
@@ -234,9 +320,15 @@ function ezc_render_import_page() {
 	$result = null;
 	if ( isset( $_POST['ezc_import'] ) && check_admin_referer( 'ezc_import' ) ) {
 		@set_time_limit( 600 );
-		$what   = 'noticias' === $_POST['ezc_import'] ? 'noticias' : 'juegos';
+		$what   = in_array( $_POST['ezc_import'], array( 'noticias', 'exclusivos' ), true ) ? $_POST['ezc_import'] : 'juegos';
 		$source = trim( wp_unslash( $_POST[ 'fuente_' . $what ] ?? '' ) );
-		$result = 'noticias' === $what ? ezc_import_noticias( $source ?: EZC_NOTICIAS_URL ) : ezc_import_juegos( $source ?: EZC_JUEGOS_URL );
+		if ( 'noticias' === $what ) {
+			$result = ezc_import_noticias( $source ?: EZC_NOTICIAS_URL );
+		} elseif ( 'exclusivos' === $what ) {
+			$result = ezc_import_exclusivos( $source ?: EZC_EXCLUSIVOS_URL );
+		} else {
+			$result = ezc_import_juegos( $source ?: EZC_JUEGOS_URL );
+		}
 	}
 	?>
 	<div class="wrap">
@@ -257,7 +349,12 @@ function ezc_render_import_page() {
 			<h2>Noticias</h2>
 			<p><input type="text" name="fuente_noticias" class="large-text" placeholder="<?php echo esc_attr( EZC_NOTICIAS_URL ); ?>"></p>
 			<p><button class="button button-primary" name="ezc_import" value="noticias">Importar noticias</button></p>
+			<h2>Exclusivos (links directos para miembros)</h2>
+			<p>Importá primero los juegos. Necesita el token de GitLab en <a href="<?php echo esc_url( admin_url( 'options-general.php?page=ezc-ajustes' ) ); ?>">Ajustes → Eclipse Zone</a>.</p>
+			<p><input type="text" name="fuente_exclusivos" class="large-text" placeholder="<?php echo esc_attr( EZC_EXCLUSIVOS_URL ); ?>"></p>
+			<p><button class="button button-primary" name="ezc_import" value="exclusivos">Importar exclusivos</button></p>
 		</form>
+		<?php do_action( 'ezc_import_page_extra' ); ?>
 	</div>
 	<?php
 }
@@ -281,8 +378,10 @@ if ( defined( 'WP_CLI' ) && WP_CLI ) {
 			$r = ezc_import_juegos( $source ?: EZC_JUEGOS_URL );
 		} elseif ( 'noticias' === $tipo ) {
 			$r = ezc_import_noticias( $source ?: EZC_NOTICIAS_URL );
+		} elseif ( 'exclusivos' === $tipo ) {
+			$r = ezc_import_exclusivos( $source ?: EZC_EXCLUSIVOS_URL );
 		} else {
-			WP_CLI::error( 'Tipo: juegos | noticias' );
+			WP_CLI::error( 'Tipo: juegos | noticias | exclusivos' );
 		}
 		if ( is_wp_error( $r ) ) {
 			WP_CLI::error( $r->get_error_message() );

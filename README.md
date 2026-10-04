@@ -48,6 +48,47 @@ El sitio anterior enlazaba solo 100 de ~590 juegos desde `/juegos/` y 12 desde e
 - **Color por traductor**: **Juegos → Traductores → editar** → elegí el color. Sin elegir, cada traductor recibe uno fijo de la paleta.
 - A los lectores no se les muestra la barra negra de WordPress; solo a editores y administradores.
 
+## Membresía (Patreon)
+
+Misma lógica que el sitio anterior: **cualquier nivel activo de Patreon** da acceso.
+
+1. En [patreon.com/portal](https://www.patreon.com/portal/registration/register-clients) creá un cliente con la Redirect URI que muestra **Ajustes → Eclipse Zone** (`https://tu-dominio/patreon/callback/`).
+2. Pegá ahí el Client ID y el Client Secret. El secreto nunca llega al navegador.
+3. Opcional: **Géneros exclusivos** (como `generosExclusivos` de patreon-config.json).
+
+Beneficios para los miembros:
+- **Descarga directa sin acortador**: la zona amarilla de la ventana de descargas. Los links directos se cargan en cada juego ("Links directos") o se importan de `exclusivos.json` (Herramientas → Importar → Exclusivos, con el token de GitLab).
+- **Juegos exclusivos**: casilla "Exclusivo de Patreon" o géneros exclusivos. A quien no es miembro no se le manda ningún link en el HTML, ni oculto.
+- La membresía se vuelve a verificar con Patreon cada 3 días: si alguien cancela, pierde el acceso solo.
+- Editores y administradores siempre tienen acceso.
+
+Páginas: `/membresia/` (beneficios) y el recuadro de Patreon en `/mi-cuenta/`.
+
+## Descargas
+
+El botón **⬇ Descargar** abre una ventana con los links agrupados por traductor, el tamaño (PC/APK) y cuántos acortadores tiene cada uno. Abajo, la zona amarilla: links directos para miembros o la invitación a Patreon para el resto. Formato en el admin: `Nombre | URL | acortadores | traductor`.
+
+## Buscar, Tags y Tops
+
+- **Filtros del catálogo** (`/juegos/`): texto, género, motor, estado, plataforma, traductor y orden (actualizados, nuevos, más vistos, mejor puntuados, A-Z). Las páginas filtradas llevan `noindex, follow` para no llenar Google de combinaciones.
+- **/tags/**: todas las etiquetas agrupadas, con buscador.
+- **/tops/**: más vistos por semana, mes, año o siempre, y mejor puntuados con media ponderada (un 5 con un voto no le gana a un 4,8 con cuarenta).
+- Las páginas Tags, Tops, Membresía y Mi cuenta se crean solas.
+
+## Redirecciones del sitio anterior
+
+Solo actúan cuando la página no existe (nunca pisan una URL válida), con 301:
+- `/categoria/rpg/` → `/genero/rpg/` (o `/motor/renpy/` si era un motor).
+- `/juego/<slug>/` con sufijo viejo (`-2`, `-3`) o `index.html` → la ficha correcta; si no existe, `/juegos/`.
+- `/juegos/?q=texto` → búsqueda.
+- URLs de mangas de MangaDex → `/mangas/`.
+
+## Velocidad
+
+- **Copiar imágenes al servidor**: Herramientas → Importar Eclipse Zone → *Copiar imágenes al servidor* (de a 5 juegos por minuto en segundo plano) o `wp eclipse imagenes`. La portada pasa a ser la imagen destacada, con miniaturas en varios tamaños. Reimportar no deshace la copia.
+- **Caché**: instalá **LiteSpeed Cache** si el hosting es LiteSpeed, o **WP Super Cache** en otro caso. Funciona bien con el tema: las vistas, votos, favoritos y reacciones van por JS/REST, así que las páginas en caché siguen contando y los usuarios con sesión no reciben páginas cacheadas.
+- El tema carga un solo JS chico (diferido) y no usa jQuery en el sitio público.
+
 ## Mangas
 
 - **Serie con capítulos**: creá el manga (título, sinopsis, portada, etiquetas) sin páginas. Después creá cada capítulo como otro manga, con la serie elegida en **Atributos → Superior** y el número en **Orden**.

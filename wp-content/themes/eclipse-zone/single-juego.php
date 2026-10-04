@@ -59,16 +59,7 @@ while ( have_posts() ) :
 
 				<?php echo ezt_vote_html( $ez_id ); // phpcs:ignore WordPress.Security.EscapeOutput -- escapado en la función ?>
 
-				<h2 style="margin-top:20px">Descargar <?php the_title(); ?> en español</h2>
-				<?php if ( $ez_links ) : ?>
-					<div class="downloads">
-						<?php foreach ( $ez_links as $l ) : ?>
-							<a class="btn" href="<?php echo esc_url( $l['url'] ); ?>" rel="nofollow noopener" target="_blank"><?php echo esc_html( $l['nombre'] ?: 'Descargar' ); ?></a>
-						<?php endforeach; ?>
-					</div>
-				<?php else : ?>
-					<p>Descarga no disponible por ahora.</p>
-				<?php endif; ?>
+				<?php get_template_part( 'template-parts/descargas' ); ?>
 
 				<?php if ( is_user_logged_in() ) : ?>
 					<p style="margin-top:12px">

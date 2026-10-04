@@ -35,6 +35,7 @@ $ez_desc    = wp_trim_words( wp_strip_all_tags( get_the_excerpt() ), 18, '…' )
 				<?php endif; ?>
 				<?php if ( $ez_version ) : ?><span class="tag tag--version"><?php echo esc_html( $ez_version ); ?></span><?php endif; ?>
 			</span>
+			<?php if ( function_exists( 'ezc_is_exclusive' ) && ezc_is_exclusive( $ez_id ) ) : ?><span class="tag tag--excl" title="Exclusivo de Patreon">💎</span><?php endif; ?>
 			<?php if ( function_exists( 'ezc_is_favorite' ) && ezc_is_favorite( $ez_id ) ) : ?><span class="card__fav" title="Favorito">★</span><?php endif; ?>
 		</div>
 		<div class="gcard__body">

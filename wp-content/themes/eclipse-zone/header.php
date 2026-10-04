@@ -23,9 +23,12 @@
 		<nav class="main-nav" aria-label="Principal">
 			<?php
 			ezt_nav_link( home_url( '/' ), 'Inicio', is_front_page() );
-			ezt_nav_link( get_post_type_archive_link( 'juego' ), 'Juegos', is_post_type_archive( 'juego' ) || is_singular( 'juego' ) || is_tax( array( 'genero', 'plataforma', 'traductor', 'estado' ) ) );
+			ezt_nav_link( get_post_type_archive_link( 'juego' ), 'Juegos', is_post_type_archive( 'juego' ) || is_singular( 'juego' ) || ( is_tax() && ! is_tax( 'etiqueta' ) ) );
+			ezt_nav_link( home_url( '/tags/' ), 'Tags', is_page( 'tags' ) );
+			ezt_nav_link( home_url( '/tops/' ), 'Tops', is_page( 'tops' ) );
 			ezt_nav_link( get_post_type_archive_link( 'noticia' ), 'Noticias', is_post_type_archive( 'noticia' ) || is_singular( 'noticia' ) );
 			ezt_nav_link( get_post_type_archive_link( 'manga' ), 'Mangas', is_post_type_archive( 'manga' ) || is_singular( 'manga' ) || is_tax( 'etiqueta' ) );
+			ezt_nav_link( home_url( '/membresia/' ), '💎 Membresía', is_page( 'membresia' ) );
 			?>
 		</nav>
 		<form class="header-search" role="search" method="get" action="<?php echo esc_url( home_url( '/' ) ); ?>">

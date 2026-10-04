@@ -22,6 +22,8 @@ if ( is_tax() ) {
 		<p><?php echo esc_html( $ez_intro ); ?></p>
 	</header>
 
+	<?php get_template_part( 'template-parts/filtros' ); ?>
+
 	<?php if ( have_posts() ) : ?>
 		<div class="grid grid--games">
 			<?php
@@ -33,7 +35,7 @@ if ( is_tax() ) {
 		</div>
 		<?php ezt_pagination(); ?>
 	<?php else : ?>
-		<p>No hay juegos aquí todavía.</p>
+		<p>No hay juegos con esos filtros. <a href="<?php echo esc_url( get_post_type_archive_link( 'juego' ) ); ?>">Ver todos</a></p>
 	<?php endif; ?>
 </div>
 <?php

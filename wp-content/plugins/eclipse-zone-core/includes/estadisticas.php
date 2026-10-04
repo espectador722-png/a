@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-const EZC_DB_VERSION = 1;
+const EZC_DB_VERSION = 2;
 
 function ezc_install_tables() {
 	global $wpdb;
@@ -36,8 +36,36 @@ function ezc_install_tables() {
 		fecha datetime NOT NULL,
 		PRIMARY KEY  (post_id,user_id)
 	) $charset;" );
+	ezc_backfill_counters();
 	update_option( 'ezc_db_version', EZC_DB_VERSION );
 }
+
+/**
+ * Contadores en 0 para todo juego/manga que no los tenga: ordenar por
+ * meta_key deja afuera a quien no tiene el meta.
+ */
+function ezc_backfill_counters() {
+	global $wpdb;
+	foreach ( array( 'ez_vistas_total', 'ez_nota_media', 'ez_nota_votos' ) as $key ) {
+		$wpdb->query( $wpdb->prepare(
+			"INSERT INTO {$wpdb->postmeta} (post_id, meta_key, meta_value)
+			 SELECT p.ID, %s, '0' FROM {$wpdb->posts} p
+			 WHERE p.post_type IN ('juego','manga')
+			 AND NOT EXISTS (SELECT 1 FROM {$wpdb->postmeta} m WHERE m.post_id = p.ID AND m.meta_key = %s)",
+			$key, $key
+		) );
+	}
+	wp_cache_flush();
+}
+
+// Cada juego/manga nuevo nace con sus contadores.
+add_action( 'wp_insert_post', function ( $post_id, $post, $update ) {
+	if ( ! $update && in_array( $post->post_type, array( 'juego', 'manga' ), true ) ) {
+		foreach ( array( 'ez_vistas_total', 'ez_nota_media', 'ez_nota_votos' ) as $key ) {
+			add_post_meta( $post_id, $key, 0, true );
+		}
+	}
+}, 10, 3 );
 
 // Al actualizar el plugin (subir archivos nuevos) no se ejecuta la activación:
 // crear las tablas si faltan.
