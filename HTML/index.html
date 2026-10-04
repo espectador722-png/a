@@ -682,6 +682,19 @@ body {
 .sb.status-progress.active { background: rgba(245,166,35,0.16); border-color: rgba(245,166,35,0.45); color: var(--accent); box-shadow: 0 2px 10px rgba(245,166,35,0.15); }
 .sb.status-done.active     { background: rgba(67,160,71,0.16); border-color: rgba(67,160,71,0.45); color: #81c784; box-shadow: 0 2px 10px rgba(67,160,71,0.15); }
 
+/* ── Estrella de "Mis favoritos" en las tarjetas ── */
+.manga-card .fav-star {
+  position: absolute;
+  top: 5px; right: 6px;
+  z-index: 6;
+  color: #ffc107;
+  font-size: 15px;
+  line-height: 1;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.85);
+  pointer-events: none;
+}
+body.selection-mode .manga-card .fav-star { display: none; }
+
 /* ── Reading status dot on cards ── */
 .read-dot {
   position: absolute;
@@ -2698,6 +2711,13 @@ function renderGrid() {
     card.appendChild(label);
     card.appendChild(chk);
 
+    if (esFavorito(m.nombre)) {
+      const star = document.createElement('i');
+      star.className = 'bi bi-star-fill fav-star';
+      star.title = 'En tus favoritos';
+      card.appendChild(star);
+    }
+
     // Contador de tags en la card
     const numTags = m.num_tags ?? (m.tags?.length ?? 0);
     const tagCountEl = document.createElement('div');
@@ -4346,8 +4366,17 @@ async function loadFavoritos() {
     const r = await fetch('/api/favoritos');
     const d = await r.json();
     state.favs = new Set((d.nombres || []).map(n => n.toLowerCase()));
+    _refrescarEstrellas();
   } catch (e) {
     console.error('[loadFavoritos]', e);
+  }
+}
+
+// Vuelve a dibujar la grilla (solo en la vista de tarjetas) para que las
+// estrellas reflejen los favoritos actuales.
+function _refrescarEstrellas() {
+  if (state.allMangas.length && state.viewMode !== 'series' && state.viewMode !== 'colecciones') {
+    renderGrid();
   }
 }
 
@@ -4364,6 +4393,7 @@ async function marcarFavoritos(nombres, favorito) {
   const d = await r.json().catch(() => ({}));
   if (!r.ok || !d.success) throw new Error(d.error || 'No se pudo actualizar');
   state.favs = new Set(d.nombres.map(n => n.toLowerCase()));
+  _refrescarEstrellas();
 }
 
 async function toggleFavorite() {
