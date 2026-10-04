@@ -87,6 +87,9 @@ function ezc_normalize_links( array $j ) {
  * exclusivo.
  */
 function ezc_import_exclusivos( $source = EZC_EXCLUSIVOS_URL ) {
+	if ( ! defined( 'WP_IMPORTING' ) ) {
+		define( 'WP_IMPORTING', true ); // sin avisos a IndexNow por cada juego importado
+	}
 	$data = ezc_load_json( $source );
 	if ( is_wp_error( $data ) ) {
 		return $data;
@@ -179,6 +182,9 @@ function ezc_source_keys( array $items, $title_field ) {
 }
 
 function ezc_import_juegos( $source = EZC_JUEGOS_URL ) {
+	if ( ! defined( 'WP_IMPORTING' ) ) {
+		define( 'WP_IMPORTING', true ); // sin avisos a IndexNow por cada juego importado
+	}
 	$data = ezc_load_json( $source );
 	if ( is_wp_error( $data ) ) {
 		return $data;
@@ -264,6 +270,9 @@ function ezc_import_juegos( $source = EZC_JUEGOS_URL ) {
 }
 
 function ezc_import_noticias( $source = EZC_NOTICIAS_URL ) {
+	if ( ! defined( 'WP_IMPORTING' ) ) {
+		define( 'WP_IMPORTING', true ); // sin avisos a IndexNow por cada juego importado
+	}
 	$data = ezc_load_json( $source );
 	if ( is_wp_error( $data ) ) {
 		return $data;

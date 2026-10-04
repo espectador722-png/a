@@ -3,8 +3,9 @@
  * SEO básico. WordPress ya hace de serie: canonical, robots, paginación
  * y el sitemap /wp-sitemap.xml (con juegos, noticias, mangas y taxonomías).
  * Aquí se agrega: título "X vN Español", meta description, Open Graph y
- * JSON-LD. Si Rank Math o Yoast están activos, se les deja la meta
- * description y Open Graph a ellos para no duplicar.
+ * JSON-LD (VideoGame, NewsArticle, BreadcrumbList), fecha de actualización
+ * en el sitemap e imagen 1200×630 para redes. Si Rank Math o Yoast están
+ * activos, se les deja meta, Open Graph y migas a ellos (ver compat.php).
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -67,6 +68,39 @@ function ezc_meta_description() {
 	return wp_trim_words( preg_replace( '/\s+/', ' ', (string) $text ), 30, '…' );
 }
 
+// Recorte 1200×630 (lo que muestran Discord, WhatsApp, Facebook y X).
+add_action( 'after_setup_theme', function () {
+	add_image_size( 'ez-og', 1200, 630, true );
+} );
+
+// <lastmod> en el sitemap: Google vuelve antes a lo que cambió (versión nueva).
+add_filter( 'wp_sitemaps_posts_entry', function ( $entry, $post ) {
+	$entry['lastmod'] = get_post_modified_time( 'c', true, $post );
+	return $entry;
+}, 10, 2 );
+
+// Páginas que no tienen que aparecer en Google.
+add_filter( 'wp_robots', function ( $robots ) {
+	if ( is_search() || is_page( 'mi-cuenta' ) || get_query_var( 'ez_patreon' ) ) {
+		$robots['noindex'] = true;
+		$robots['follow']  = true;
+	}
+	return $robots;
+} );
+
+/** Imagen para redes: el recorte ez-og si la portada está en el servidor. ['url','w','h'] */
+function ezc_og_image_data() {
+	$id = is_singular() ? get_queried_object_id() : 0;
+	if ( $id && has_post_thumbnail( $id ) ) {
+		$src = wp_get_attachment_image_src( get_post_thumbnail_id( $id ), 'ez-og' );
+		if ( $src ) {
+			return array( 'url' => $src[0], 'w' => $src[1], 'h' => $src[2] );
+		}
+	}
+	$url = ezc_og_image();
+	return $url ? array( 'url' => $url, 'w' => 0, 'h' => 0 ) : null;
+}
+
 function ezc_og_image() {
 	if ( ! is_singular() ) {
 		return '';
@@ -93,9 +127,22 @@ add_action( 'wp_head', function () {
 		printf( "<meta property=\"og:title\" content=\"%s\">\n", esc_attr( wp_get_document_title() ) );
 		printf( "<meta property=\"og:site_name\" content=\"%s\">\n", esc_attr( get_bloginfo( 'name' ) ) );
 		printf( "<meta property=\"og:locale\" content=\"es_ES\">\n" );
-		if ( $img ) {
-			printf( "<meta property=\"og:image\" content=\"%s\">\n", esc_url( $img ) );
+		printf( "<meta property=\"og:type\" content=\"%s\">\n", is_singular() ? 'article' : 'website' );
+		if ( is_singular() ) {
+			printf( "<meta property=\"og:url\" content=\"%s\">\n", esc_url( get_permalink() ) );
+		}
+		$og = ezc_og_image_data();
+		if ( $og ) {
+			printf( "<meta property=\"og:image\" content=\"%s\">\n", esc_url( $og['url'] ) );
+			if ( $og['w'] ) {
+				printf( "<meta property=\"og:image:width\" content=\"%d\">\n<meta property=\"og:image:height\" content=\"%d\">\n", $og['w'], $og['h'] );
+			}
 			echo "<meta name=\"twitter:card\" content=\"summary_large_image\">\n";
+		}
+		// Migas para Google ("Inicio › Juegos › Nombre" en vez de la URL).
+		$crumbs = ezc_breadcrumb_schema();
+		if ( $crumbs ) {
+			echo '<script type="application/ld+json">' . wp_json_encode( $crumbs, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) . "</script>\n";
 		}
 	}
 
@@ -104,6 +151,46 @@ add_action( 'wp_head', function () {
 		echo '<script type="application/ld+json">' . wp_json_encode( $schema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) . "</script>\n";
 	}
 }, 5 );
+
+/** Ruta de migas de la página actual: [[nombre, url], ...]. */
+function ezc_breadcrumb_trail() {
+	$trail = array( array( 'Inicio', home_url( '/' ) ) );
+	$archives = array( 'juego' => 'Juegos', 'noticia' => 'Noticias', 'manga' => 'Mangas' );
+	if ( is_singular( array_keys( $archives ) ) ) {
+		$post    = get_queried_object();
+		$trail[] = array( $archives[ $post->post_type ], get_post_type_archive_link( $post->post_type ) );
+		if ( $post->post_parent ) {
+			$trail[] = array( get_the_title( $post->post_parent ), get_permalink( $post->post_parent ) );
+		}
+		$trail[] = array( get_the_title( $post ), get_permalink( $post ) );
+	} elseif ( is_post_type_archive( array_keys( $archives ) ) ) {
+		$type    = get_query_var( 'post_type' );
+		$type    = is_array( $type ) ? reset( $type ) : $type;
+		$trail[] = array( $archives[ $type ] ?? '', get_post_type_archive_link( $type ) );
+	} elseif ( is_tax() ) {
+		$term    = get_queried_object();
+		$parent  = 'etiqueta' === $term->taxonomy ? 'manga' : 'juego';
+		$trail[] = array( $archives[ $parent ], get_post_type_archive_link( $parent ) );
+		$trail[] = array( $term->name, get_term_link( $term ) );
+	} elseif ( is_page() && ! is_front_page() ) {
+		$trail[] = array( get_the_title(), get_permalink() );
+	}
+	return count( $trail ) > 1 ? $trail : array();
+}
+
+function ezc_breadcrumb_schema() {
+	$trail = ezc_breadcrumb_trail();
+	if ( ! $trail ) {
+		return null;
+	}
+	return array(
+		'@context'        => 'https://schema.org',
+		'@type'           => 'BreadcrumbList',
+		'itemListElement' => array_map( function ( $i, $c ) {
+			return array( '@type' => 'ListItem', 'position' => $i + 1, 'name' => $c[0], 'item' => $c[1] );
+		}, array_keys( $trail ), $trail ),
+	);
+}
 
 function ezc_schema() {
 	if ( ! is_singular( array( 'juego', 'noticia', 'manga' ) ) ) {
@@ -118,7 +205,7 @@ function ezc_schema() {
 		'inLanguage'    => 'es',
 		'datePublished' => get_post_time( 'c', true, $id ),
 		'dateModified'  => get_post_modified_time( 'c', true, $id ),
-		'image'         => ezc_og_image() ?: null,
+		'image'         => ( ezc_og_image_data()['url'] ?? null ),
 		'description'   => ezc_meta_description(),
 		'publisher'     => array( '@type' => 'Organization', 'name' => get_bloginfo( 'name' ), 'url' => home_url( '/' ) ),
 	);

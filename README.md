@@ -89,6 +89,34 @@ Solo actúan cuando la página no existe (nunca pisan una URL válida), con 301:
 - **Caché**: instalá **LiteSpeed Cache** si el hosting es LiteSpeed, o **WP Super Cache** en otro caso. Funciona bien con el tema: las vistas, votos, favoritos y reacciones van por JS/REST, así que las páginas en caché siguen contando y los usuarios con sesión no reciben páginas cacheadas.
 - El tema carga un solo JS chico (diferido) y no usa jQuery en el sitio público.
 
+## SEO e indexación
+
+Ya incluido:
+- Páginas completas desde el servidor, paginación con enlaces reales, canonical, meta description, Open Graph, `VideoGame`/`NewsArticle` y **migas (BreadcrumbList)** para Google.
+- **Sitemap** `/wp-sitemap.xml` con `<lastmod>` = fecha de la última versión del juego (sin usuarios ni entradas normales).
+- **Imagen para redes 1200×630** recortada de la portada (Discord, WhatsApp, Facebook, X).
+- **IndexNow**: avisa a Bing/Yandex al publicar o actualizar (no durante importaciones masivas ni en copias locales). La clave se sirve sola en `/<clave>.txt`.
+- `noindex` en búsquedas, filtros y `/mi-cuenta/`.
+
+Lo que hacés vos al publicar:
+1. **Ajustes → Lectura**: dejar **desmarcado** "Disuadir a los motores de búsqueda".
+2. **Search Console**: agregar el dominio y enviar el sitemap (`/wp-sitemap.xml`, o `/sitemap_index.xml` si usás Rank Math).
+3. **Bing Webmaster Tools**: importar el sitio desde Search Console.
+
+## Plugins recomendados
+
+| Plugin | Para qué | Qué ya está preparado |
+|---|---|---|
+| **Rank Math SEO** (o Yoast) | SEO, sitemap, monitor de 404 | Toma el título "Juego vX en Español", la portada como imagen para redes y se le quita el schema Article genérico en juegos/mangas. Nuestro meta/OG/migas se apaga solo para no duplicar. IndexNow propio se apaga si activás "Instant Indexing". |
+| **LiteSpeed Cache** o **WP Super Cache** | Velocidad | `/mi-cuenta/` y `/patreon/*` nunca se cachean; al publicar un juego se vacían el inicio y `/juegos/`. Vistas, votos y reacciones se actualizan por JS. |
+| **Wordfence** o **Solid Security** | Seguridad | Los endpoints `/wp-json/ez/v1/*` usan nonce. Si el firewall bloquea la REST API a visitantes, permitir `/wp-json/ez/v1/vista`. |
+| **UpdraftPlus** | Copias de seguridad | Incluye las tablas `ez_vistas`, `ez_votos`, `ez_reacciones`. |
+| **Complianz** | Cookies y legales (obligatorio con anuncios) | El tema no pone cookies propias (solo localStorage para la franja de Discord). |
+| **Burst Statistics** | Estadísticas | Nada que configurar. |
+| **Akismet** o **Antispam Bee** | Spam en comentarios | Usa los comentarios estándar de WordPress. |
+
+No instales Elementor, Top 10, Rate My Post, Remoji ni Paid Memberships Pro: el tema y el plugin ya hacen eso y duplicarían funciones.
+
 ## Mangas
 
 - **Serie con capítulos**: creá el manga (título, sinopsis, portada, etiquetas) sin páginas. Después creá cada capítulo como otro manga, con la serie elegida en **Atributos → Superior** y el número en **Orden**.

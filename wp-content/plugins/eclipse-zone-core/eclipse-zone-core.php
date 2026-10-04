@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Eclipse Zone Core
  * Description: Tipo de contenido "juego", taxonomías, campos, importador de juegos.json y datos estructurados para Eclipse Zone.
- * Version:     0.4.0
+ * Version:     0.5.0
  * Author:      Eclipse Zone
  * Text Domain: eclipse-zone
  * Requires PHP: 7.4
@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 define( 'EZC_PATH', plugin_dir_path( __FILE__ ) );
 define( 'EZC_URL', plugin_dir_url( __FILE__ ) );
-define( 'EZC_VERSION', '0.4.0' );
+define( 'EZC_VERSION', '0.5.0' );
 
 require_once EZC_PATH . 'includes/content-types.php';
 require_once EZC_PATH . 'includes/meta.php';
@@ -28,6 +28,8 @@ require_once EZC_PATH . 'includes/redirecciones.php';
 require_once EZC_PATH . 'includes/imagenes.php';
 require_once EZC_PATH . 'includes/importer.php';
 require_once EZC_PATH . 'includes/seo.php';
+require_once EZC_PATH . 'includes/indexnow.php';
+require_once EZC_PATH . 'includes/compat.php';
 
 // Las URLs /juego/<slug>/ y /juegos/page/N/ necesitan regenerar las reglas
 // de reescritura al activar/desactivar el plugin.
