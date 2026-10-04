@@ -12,6 +12,10 @@ $ezt_q       = isset( $_GET['q'] ) ? sanitize_text_field( wp_unslash( $_GET['q']
 $ezt_base    = is_tax() ? get_term_link( get_queried_object() ) : get_post_type_archive_link( 'juego' );
 $ezt_current = is_tax() ? get_queried_object()->taxonomy : '';
 ?>
+<div class="catalog-head">
+	<span class="catalog-head__n"><?php echo esc_html( number_format_i18n( (int) $GLOBALS['wp_query']->found_posts ) . ' juegos' ); ?></span>
+	<a class="btn btn--ghost" href="<?php echo esc_url( add_query_arg( 'aleatorio', 1, get_post_type_archive_link( 'juego' ) ) ); ?>" rel="nofollow">🎲 Aleatorio</a>
+</div>
 <form id="filtros" class="filters" method="get" action="<?php echo esc_url( $ezt_base ); ?>" data-ez-filters>
 	<input type="search" name="q" value="<?php echo esc_attr( $ezt_q ); ?>" placeholder="Buscar en el catálogo…" class="filters__q" aria-label="Buscar en el catálogo">
 	<?php

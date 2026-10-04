@@ -12,6 +12,15 @@
 		</nav>
 	</div>
 </footer>
+<dialog id="ez-qs" class="qs" aria-label="Búsqueda rápida">
+	<form method="get" action="<?php echo esc_url( home_url( '/' ) ); ?>" class="qs__form">
+		<span aria-hidden="true">🔍</span>
+		<input type="search" name="s" placeholder="Buscar juegos y mangas…" autocomplete="off" data-ez-qs-input aria-label="Buscar juegos y mangas">
+		<kbd>Esc</kbd>
+	</form>
+	<ul class="qs__list" data-ez-qs-list role="listbox"></ul>
+	<p class="qs__empty" data-ez-qs-empty hidden>No se encontraron resultados. Probá con palabras más generales.</p>
+</dialog>
 <?php wp_footer(); ?>
 </body>
 </html>

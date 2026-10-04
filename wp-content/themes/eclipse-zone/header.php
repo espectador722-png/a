@@ -23,17 +23,17 @@
 		<nav class="main-nav" aria-label="Principal">
 			<?php
 			ezt_nav_link( home_url( '/' ), 'Inicio', is_front_page() );
-			ezt_nav_link( get_post_type_archive_link( 'juego' ), 'Juegos', is_post_type_archive( 'juego' ) || is_singular( 'juego' ) || ( is_tax() && ! is_tax( 'etiqueta' ) ) );
+			ezt_nav_link( get_post_type_archive_link( 'juego' ), 'Juegos', is_post_type_archive( 'juego' ) || is_singular( 'juego' ) || ( is_tax() && ! is_tax( array( 'etiqueta', 'tipo_manga', 'demografia', 'estado_manga' ) ) ) );
 			ezt_nav_link( home_url( '/tags/' ), 'Tags', is_page( 'tags' ) );
 			ezt_nav_link( home_url( '/tops/' ), 'Tops', is_page( 'tops' ) );
 			ezt_nav_link( get_post_type_archive_link( 'noticia' ), 'Noticias', is_post_type_archive( 'noticia' ) || is_singular( 'noticia' ) );
-			ezt_nav_link( get_post_type_archive_link( 'manga' ), 'Mangas', is_post_type_archive( 'manga' ) || is_singular( 'manga' ) || is_tax( 'etiqueta' ) );
+			ezt_nav_link( get_post_type_archive_link( 'manga' ), 'Mangas', is_post_type_archive( 'manga' ) || is_singular( 'manga' ) || is_tax( array( 'etiqueta', 'tipo_manga', 'demografia', 'estado_manga' ) ) );
 			ezt_nav_link( home_url( '/membresia/' ), '💎 Membresía', is_page( 'membresia' ) );
 			?>
 		</nav>
 		<form class="header-search" role="search" method="get" action="<?php echo esc_url( home_url( '/' ) ); ?>">
 			<label class="screen-reader-text" for="s">Buscar</label>
-			<input type="search" id="s" name="s" value="<?php echo esc_attr( get_search_query() ); ?>" placeholder="Buscar juegos, mangas…">
+			<input type="search" id="s" name="s" value="<?php echo esc_attr( get_search_query() ); ?>" placeholder="Buscar…  Ctrl K" autocomplete="off" data-ez-qs-open>
 		</form>
 		<span class="header-user">
 			<?php if ( is_user_logged_in() ) : ?>

@@ -134,6 +134,57 @@
 		});
 	}
 
+	// ── Búsqueda rápida (Ctrl+K o clic en el buscador) ─────────
+	var qs = document.getElementById('ez-qs');
+	if (qs && qs.showModal) {
+		var qsInput = qs.querySelector('[data-ez-qs-input]');
+		var qsList = qs.querySelector('[data-ez-qs-list]');
+		var qsEmpty = qs.querySelector('[data-ez-qs-empty]');
+		var qsTimer, qsSeq = 0;
+		var openQs = function (text) {
+			if (!qs.open) qs.showModal();
+			if (text !== undefined) qsInput.value = text;
+			qsInput.focus();
+		};
+		document.addEventListener('keydown', function (e) {
+			if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); openQs(); }
+		});
+		document.querySelectorAll('[data-ez-qs-open]').forEach(function (inp) {
+			inp.addEventListener('focus', function () { inp.blur(); openQs(inp.value); });
+		});
+		qsInput.addEventListener('input', function () {
+			clearTimeout(qsTimer);
+			var q = qsInput.value.trim();
+			if (q.length < 2) { qsList.innerHTML = ''; qsEmpty.hidden = true; return; }
+			qsTimer = setTimeout(function () {
+				var seq = ++qsSeq;
+				fetch(EZ.api + 'buscar?q=' + encodeURIComponent(q)).then(function (r) { return r.json(); }).then(function (items) {
+					if (seq !== qsSeq) return;
+					qsList.innerHTML = '';
+					qsEmpty.hidden = items.length > 0;
+					items.forEach(function (it) {
+						var li = document.createElement('li');
+						var a = document.createElement('a');
+						a.href = it.url;
+						if (it.img) { var im = document.createElement('img'); im.src = it.img; im.alt = ''; im.loading = 'lazy'; a.appendChild(im); }
+						var t = document.createElement('span'); t.textContent = it.titulo; a.appendChild(t);
+						var k = document.createElement('small'); k.textContent = it.tipo; a.appendChild(k);
+						li.appendChild(a); qsList.appendChild(li);
+					});
+				}).catch(function () {});
+			}, 220);
+		});
+		qsInput.addEventListener('keydown', function (e) {
+			if (e.key === 'ArrowDown') { var f = qsList.querySelector('a'); if (f) { e.preventDefault(); f.focus(); } }
+		});
+		qsList.addEventListener('keydown', function (e) {
+			var a = document.activeElement.closest('li');
+			if (!a) return;
+			if (e.key === 'ArrowDown' && a.nextElementSibling) { e.preventDefault(); a.nextElementSibling.querySelector('a').focus(); }
+			if (e.key === 'ArrowUp') { e.preventDefault(); (a.previousElementSibling ? a.previousElementSibling.querySelector('a') : qsInput).focus(); }
+		});
+	}
+
 	// ── Clics: favoritos, leído, votos ─────────────────────────
 	function needLogin() { if (!EZ.logged) { location.href = EZ.login; return true; } return false; }
 
@@ -161,6 +212,17 @@
 				read.closest('li').classList.toggle('is-read', leido);
 			}).catch(function () { alert('No se pudo guardar. Probá de nuevo.'); })
 				.finally(function () { read.disabled = false; });
+			return;
+		}
+
+		var lib = e.target.closest('[data-ez-lib] button');
+		if (lib) {
+			if (needLogin()) return;
+			var box = lib.closest('[data-ez-lib]');
+			var estado = lib.getAttribute('aria-pressed') === 'true' ? '' : lib.value; // otro clic = quitar
+			EZ.post('biblioteca', { id: +box.dataset.ezLib, estado: estado }).then(function (r) {
+				box.querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', b.value === r.estado ? 'true' : 'false'); });
+			}).catch(function () { alert('No se pudo guardar.'); });
 			return;
 		}
 

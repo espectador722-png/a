@@ -47,6 +47,33 @@ $ez_history = ezc_user_history( 12 );
 		</p>
 	</section>
 
+	<?php if ( function_exists( 'ezc_library_states' ) ) : ?>
+		<section class="section">
+			<h2>Mi Biblioteca</h2>
+			<?php
+			$ez_any = false;
+			foreach ( ezc_library_states() as $ez_k => $ez_label ) :
+				$ez_list = ezc_library_posts( $ez_k );
+				if ( ! $ez_list ) {
+					continue;
+				}
+				$ez_any = true;
+				?>
+				<h3 class="lib-title"><?php echo esc_html( $ez_label ); ?> <small><?php echo count( $ez_list ); ?></small></h3>
+				<div class="grid grid--manga">
+					<?php
+					foreach ( $ez_list as $post ) {
+						setup_postdata( $post );
+						get_template_part( 'template-parts/card', 'manga' );
+					}
+					wp_reset_postdata();
+					?>
+				</div>
+			<?php endforeach; ?>
+			<?php if ( ! $ez_any ) : ?><p>Usá los botones 📖 Leyendo, 🔖 Por leer y ✅ Completado en cada manga para armar tu biblioteca.</p><?php endif; ?>
+		</section>
+	<?php endif; ?>
+
 	<section class="section">
 		<h2>Seguir leyendo</h2>
 		<?php if ( $ez_history ) : ?>
