@@ -1316,11 +1316,6 @@ def get_manga_preview(categoria, filename):
     return send_from_directory(preview_dir, filename, max_age=Config.PREVIEW_MAX_AGE)
 
 
-@manga_bp.route("/mangas/<path:filename>")
-def serve_manga(filename):
-    return send_from_directory(Config.BASE_DIR, filename)
-
-
 @manga_bp.route("/get_manga_page/<categoria>/<manga_name>/<filename>")
 def get_manga_page(categoria, manga_name, filename):
     if categoria not in MANGA_SECTION_DIRS:

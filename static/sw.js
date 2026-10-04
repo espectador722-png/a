@@ -12,7 +12,7 @@
  *
  * Al tocar este archivo, subí VERSION: eso invalida los cachés viejos.
  */
-const VERSION    = 'v2';
+const VERSION    = 'v3';
 const CACHE_APP  = `app-${VERSION}`;     // shell: HTML, CSS, iconos
 const CACHE_IMG  = `img-${VERSION}`;     // previews y páginas
 const MAX_IMG    = 900;                  // techo del caché de imágenes
@@ -25,7 +25,7 @@ const SHELL = [
 ];
 
 // Rutas que sirven imágenes cacheables
-const RE_IMG = /^\/(get_manga_preview|get_manga_page|mangas)\//;
+const RE_IMG = /^\/(get_manga_preview|get_manga_page)\//;
 
 
 self.addEventListener('install', event => {

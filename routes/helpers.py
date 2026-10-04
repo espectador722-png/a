@@ -5,6 +5,7 @@ import json
 import shutil
 import logging
 import time
+import tempfile
 import unicodedata
 from typing import Any, Callable
 
@@ -120,13 +121,38 @@ def load_json(path: str, default=None) -> Any:
 
 
 def save_json(path: str, data: Any) -> bool:
-    """Guarda data como JSON en path. Retorna True si tuvo éxito."""
+    """Guarda data como JSON en path. Retorna True si tuvo éxito.
+
+    Escritura atómica: se escribe un temporal en la misma carpeta y se
+    reemplaza el archivo de una vez (os.replace). Si el proceso se corta a
+    mitad de camino, queda el archivo anterior intacto en vez de un JSON
+    truncado — importante para usuarios.json, favoritos y progreso."""
+    tmp = None
     try:
-        with open(path, "w", encoding="utf-8") as f:
+        carpeta = os.path.dirname(os.path.abspath(path))
+        fd, tmp = tempfile.mkstemp(prefix=".tmp-", suffix=".json", dir=carpeta)
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        # En Windows os.replace falla si otro hilo tiene el destino abierto
+        # justo en ese instante (lectura en curso): reintentar un poco.
+        for intento in range(5):
+            try:
+                os.replace(tmp, path)
+                break
+            except PermissionError:
+                if intento == 4:
+                    raise
+                time.sleep(0.05 * (intento + 1))
         return True
     except Exception as e:
         logger.error("Error escribiendo %s: %s", path, e)
+        if tmp and os.path.exists(tmp):
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
         return False
 
 
