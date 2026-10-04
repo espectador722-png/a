@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'EZT_VERSION', '0.2.0' );
+define( 'EZT_VERSION', '0.3.0' );
 
 add_action( 'after_setup_theme', function () {
 	add_theme_support( 'title-tag' );
@@ -26,8 +26,18 @@ add_action( 'after_switch_theme', function () {
 	}
 } );
 
+// Conectar antes con Google Fonts (las fuentes cargan con display=swap).
+add_filter( 'wp_resource_hints', function ( $urls, $type ) {
+	if ( 'preconnect' === $type ) {
+		$urls[] = 'https://fonts.googleapis.com';
+		$urls[] = array( 'href' => 'https://fonts.gstatic.com', 'crossorigin' );
+	}
+	return $urls;
+}, 10, 2 );
+
 add_action( 'wp_enqueue_scripts', function () {
-	wp_enqueue_style( 'eclipse-zone', get_stylesheet_uri(), array(), EZT_VERSION );
+	wp_enqueue_style( 'ezt-fonts', 'https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Orbitron:wght@600;700;800&display=swap', array(), null );
+	wp_enqueue_style( 'eclipse-zone', get_stylesheet_uri(), array( 'ezt-fonts' ), EZT_VERSION );
 
 	// JS chico y diferido: carrusel, pestañas del top, franja de Discord,
 	// contador de vistas, votos y favoritos. El contenido ya llega en el HTML.
