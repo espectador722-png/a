@@ -124,6 +124,18 @@ Lo que hacés vos al publicar:
 
 No instales Elementor, Top 10, Rate My Post, Remoji ni Paid Memberships Pro: el tema y el plugin ya hacen eso y duplicarían funciones.
 
+## Lector y catálogo de mangas
+
+**Lector**: modo Cascada o Paginado (se recomienda Paginado para manga/one shot y Cascada para manhwa/manhua según el *Tipo*), ancho Angosto/Normal/Completo, zoom 50–200 %, pantalla completa, auto-scroll con velocidad 0.5x–3x, "Ir a página", barra de progreso, tiempo de lectura estimado, tocar o deslizar para pasar página en el celular, teclado (← → F Espacio), reintentar imágenes que fallan, reportar problemas, compartir y pantalla de fin de capítulo con reacciones, siguiente capítulo e invitación a Patreon. Las preferencias se recuerdan en cada navegador.
+
+**Reportes**: llegan a **Mangas → Reportes** con el capítulo y la página. Límite de 5 por hora por visitante.
+
+**Catálogo** `/mangas/`: filtros por Tipo (Manga, Manhwa, Manhua, One Shot…), Demografía (Shounen, Seinen, Shoujo, Josei…), Estado (En emisión, Completado…) y Categoría; orden por Recientes, Mejor valorados, Más vistos, Más gente leyendo, Más gente por leer, Más capítulos o A-Z; botón 🎲 Aleatorio (también en juegos).
+
+**Mi Biblioteca**: cada serie se marca 📖 Leyendo, 🔖 Por leer o ✅ Completado; aparece en `/mi-cuenta/`.
+
+**Búsqueda rápida**: Ctrl+K (o tocar el buscador) busca juegos y mangas mientras escribís.
+
 ## Mangas
 
 - **Serie con capítulos**: creá el manga (título, sinopsis, portada, etiquetas) sin páginas. Después creá cada capítulo como otro manga, con la serie elegida en **Atributos → Superior** y el número en **Orden**.

@@ -24,6 +24,8 @@ $ez_parent   = wp_get_post_parent_id( $ez_id ); // en "Seguir leyendo" aparecen 
 				</div>
 			<?php endif; ?>
 		</div>
+		<?php $ez_tipo = ezt_term_names( $ez_parent ?: $ez_id, 'tipo_manga' ); ?>
+		<?php if ( $ez_tipo ) : ?><span class="tag tag--tipo tag--<?php echo esc_attr( sanitize_title( $ez_tipo ) ); ?>"><?php echo esc_html( $ez_tipo ); ?></span><?php endif; ?>
 		<div class="gcard__body">
 			<a class="gcard__title" href="<?php the_permalink(); ?>"><?php echo esc_html( $ez_parent ? get_the_title( $ez_parent ) . ' · ' . get_the_title() : get_the_title() ); ?></a>
 		</div>
