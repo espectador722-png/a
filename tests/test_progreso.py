@@ -110,3 +110,36 @@ def test_migracion_del_progreso_compartido(app):
     # Una sola vez: lo que lea después no se pisa con lo viejo
     _guardar(duenio, "Leido Antes", "largos", 2)
     assert _item(duenio, "largos", "Leido Antes")["paginas_leidas"] == 2
+
+
+def _estado(c, nombre, seccion, estado):
+    return c.post("/api/progreso/estado", headers=ORIGEN,
+                  json={"manga_name": nombre, "category": seccion, "estado": estado})
+
+
+def test_marcar_leido_y_sin_leer(app):
+    _crear_manga("Mangas Cortos", "Preview Mangas Cortos", "Prog Marcar")
+    ana = _cliente(app, "ana1")
+    beto = _cliente(app, "beto1")
+
+    r = _estado(ana, "Prog Marcar", "cortos", "leido")
+    assert r.status_code == 200
+    d = r.get_json()
+    assert d["paginas_leidas"] == d["paginas_max"] == d["paginas_total"] == 1
+
+    m = _item(ana, "cortos", "Prog Marcar")
+    assert m["paginas_leidas"] == m["paginas_total"] == 1
+    assert _item(beto, "cortos", "Prog Marcar")["paginas_leidas"] == 0
+
+    assert _estado(ana, "Prog Marcar", "cortos", "sin_leer").status_code == 200
+    m = _item(ana, "cortos", "Prog Marcar")
+    assert (m["paginas_leidas"], m["paginas_max"]) == (0, 0)
+    hist = [x["nombre"] for x in ana.get("/api/manga/historial").get_json()["mangas"]]
+    assert "Prog Marcar" not in hist
+
+
+def test_marcar_estado_valida_datos(app):
+    ana = _cliente(app, "ana1")
+    assert _estado(ana, "Prog Marcar", "cortos", "otro").status_code == 400
+    assert _estado(ana, "Prog Marcar", "no-existe", "leido").status_code == 400
+    assert _estado(ana, "No Hay Tal Manga", "cortos", "leido").status_code == 404

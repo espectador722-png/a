@@ -90,6 +90,32 @@ def guardar(usuario: str, manga_name: str, category: str, pagina: int) -> None:
         save_json(_path(), data)
 
 
+def marcar(usuario: str, manga_name: str, category: str, estado: str, total: int) -> dict:
+    """estado "leido": deja el manga completo (página = máximo = total).
+    estado "sin_leer": borra su progreso (y lo saca del historial).
+    Devuelve la entrada resultante ({} si quedó sin leer)."""
+    clave = usuario.lower()
+    with _lock:
+        data = _load()
+        _migrar_si_corresponde(data, clave)
+        propio = data["usuarios"].setdefault(clave, {})
+        if estado == "sin_leer":
+            propio.pop(manga_name.lower(), None)
+            entrada = {}
+        else:
+            total = max(1, int(total))
+            entrada = {
+                "manga_name": manga_name,
+                "category":   category,
+                "pagina":     total,
+                "max":        total,
+                "last_read":  datetime.now().isoformat(),
+            }
+            propio[manga_name.lower()] = entrada
+        save_json(_path(), data)
+        return dict(entrada)
+
+
 def renombrar_en_todos(viejo: str, nuevo: str) -> None:
     """Mantiene el progreso al renombrar un manga (lo llama manga.py)."""
     with _lock:

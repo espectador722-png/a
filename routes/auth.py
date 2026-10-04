@@ -56,7 +56,8 @@ PREFIJOS_ADMIN = (
 
 # Únicas escrituras (POST/PUT/PATCH/DELETE) permitidas a un lector.
 ESCRITURA_LECTOR = {"/save_reading_progress", "/cleanup_reading_progress",
-                    "/logout", "/api/me/password", "/api/favoritos"}
+                    "/api/progreso/estado", "/logout", "/api/me/password",
+                    "/api/favoritos"}
 
 _METODOS_LECTURA = {"GET", "HEAD", "OPTIONS"}
 

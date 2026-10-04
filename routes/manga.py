@@ -1714,6 +1714,40 @@ def save_reading_progress():
     return jsonify({"success": True})
 
 
+@manga_bp.route("/api/progreso/estado", methods=["POST"])
+def marcar_estado_lectura():
+    """Marca un manga como leído o sin leer para el usuario actual.
+    Body: {"manga_name": "...", "category": "largos", "estado": "leido"|"sin_leer"}"""
+    data = request.get_json(silent=True) or {}
+    manga_name = safe_basename(data.get("manga_name") or "")
+    category = data.get("category")
+    estado = data.get("estado")
+    if not manga_name or category not in MANGA_SECTION_DIRS or estado not in ("leido", "sin_leer"):
+        return jsonify({"success": False, "error": "Datos inválidos"}), 400
+
+    ruta = find_content_dir([MANGA_SECTION_DIRS[category][0]], manga_name)
+    if not ruta:
+        return jsonify({"success": False, "error": "Manga no encontrado"}), 404
+    total = sum(1 for f in os.listdir(ruta) if f.lower().endswith(Config.IMAGE_EXTENSIONS))
+    # Igual que get_manga_info: el total de páginas (dato compartido, no de
+    # usuario) se guarda en metadata para que la lista pueda mostrar el estado.
+    meta_path = os.path.join(ruta, METADATA_FILE)
+    meta = load_json(meta_path, {})
+    if meta.get("paginas_total") != total:
+        meta["paginas_total"] = total
+        save_json(meta_path, meta)
+        invalidate_cache(f"manga_list_{category}")
+
+    entrada = progreso.marcar(g.usuario["usuario"], manga_name, category, estado, total)
+    return jsonify({
+        "success":        True,
+        "paginas_leidas": entrada.get("pagina", 0),
+        "paginas_max":    entrada.get("max", 0),
+        "paginas_total":  total,
+        "ultima_lectura": entrada.get("last_read", ""),
+    })
+
+
 @manga_bp.route("/get_reading_progress")
 def get_reading_progress():
     """{"<sección>_<manga>": {...}} con la sección ACTUAL de cada manga (si se

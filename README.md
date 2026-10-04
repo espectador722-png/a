@@ -20,7 +20,7 @@ Todos entran con usuario y contraseña. Hay dos roles:
 | Acción | Lector | Admin |
 |---|:---:|:---:|
 | Ver la biblioteca, buscar, leer, guardar progreso | ✅ | ✅ |
-| Sus propios favoritos, progreso e historial | ✅ | ✅ |
+| Sus propios favoritos, progreso e historial (incluido marcar leído / sin leer) | ✅ | ✅ |
 | Cambiar su propia contraseña | ✅ | ✅ |
 | Descargas (hitomi, 3hentai) | | ✅ |
 | Borrar, mover, renombrar, tags, series, colecciones, categorías | | ✅ |

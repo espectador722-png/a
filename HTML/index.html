@@ -682,6 +682,14 @@ body {
 .sb.status-progress.active { background: rgba(245,166,35,0.16); border-color: rgba(245,166,35,0.45); color: var(--accent); box-shadow: 0 2px 10px rgba(245,166,35,0.15); }
 .sb.status-done.active     { background: rgba(67,160,71,0.16); border-color: rgba(67,160,71,0.45); color: #81c784; box-shadow: 0 2px 10px rgba(67,160,71,0.15); }
 
+/* ── Marcar leído / sin leer (detalle) ── */
+.read-progress-acciones { display: flex; justify-content: center; gap: 12px; margin-top: 6px; }
+.read-progress-acciones button {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  color: var(--muted2); font-size: 11px; font-family: inherit;
+}
+.read-progress-acciones button:hover { color: var(--text); }
+
 /* ── Estrella de "Mis favoritos" en las tarjetas ── */
 .manga-card .fav-star {
   position: absolute;
@@ -1412,6 +1420,14 @@ body.selection-mode .manga-card:not(.selected):active { opacity: 1; }
               </div>
               <div class="read-progress-track">
                 <div class="read-progress-fill" id="detailProgressFill"></div>
+              </div>
+              <div class="read-progress-acciones">
+                <button type="button" id="detailMarcarLeido" onclick="marcarEstadoLectura('leido')">
+                  <i class="bi bi-check2-all"></i> Marcar leído
+                </button>
+                <button type="button" id="detailMarcarSinLeer" onclick="marcarEstadoLectura('sin_leer')">
+                  <i class="bi bi-arrow-counterclockwise"></i> Marcar sin leer
+                </button>
               </div>
             </div>
             <!-- Language / type badges -->
@@ -4021,6 +4037,39 @@ function _renderDetailProgress(leidas, total) {
   const fill = document.getElementById('detailProgressFill');
   fill.style.width = pct + '%';
   fill.className   = 'read-progress-fill ' + (done ? 'done' : inProgress ? 'progress' : 'unread');
+  document.getElementById('detailMarcarLeido').style.display   = done ? 'none' : '';
+  document.getElementById('detailMarcarSinLeer').style.display = leidas > 0 ? '' : 'none';
+}
+
+async function marcarEstadoLectura(estado) {
+  const m = state.manga;
+  if (!m) return;
+  try {
+    const r = await fetch('/api/progreso/estado', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ manga_name: m.nombre, category: m.tipo, estado }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || !d.success) throw new Error(d.error || 'No se pudo actualizar');
+    // Actualizar el manga en memoria (detalle + grilla) sin recargar la sección
+    for (const x of [m, state.allMangas.find(y => y.nombre === m.nombre)]) {
+      if (!x) continue;
+      x.paginas_leidas = d.paginas_leidas;
+      x.paginas_max    = d.paginas_max;
+      x.paginas_total  = d.paginas_total;
+      x.ultima_lectura = d.ultima_lectura;
+    }
+    _renderDetailProgress(d.paginas_leidas, d.paginas_total);
+    // El botón pulsado acaba de ocultarse: sin esto el foco cae al <body> y
+    // el modal deja de cerrarse con Escape.
+    const otro = document.getElementById(estado === 'leido' ? 'detailMarcarSinLeer' : 'detailMarcarLeido');
+    (otro && otro.offsetParent ? otro : document.getElementById('detailModal')).focus();
+    _redibujarGrilla();
+    loadHistorial();
+  } catch (e) {
+    alert('Error: ' + e.message);
+  }
 }
 
 function _renderDetailChips(md, m) {
@@ -4366,15 +4415,15 @@ async function loadFavoritos() {
     const r = await fetch('/api/favoritos');
     const d = await r.json();
     state.favs = new Set((d.nombres || []).map(n => n.toLowerCase()));
-    _refrescarEstrellas();
+    _redibujarGrilla();
   } catch (e) {
     console.error('[loadFavoritos]', e);
   }
 }
 
 // Vuelve a dibujar la grilla (solo en la vista de tarjetas) para que las
-// estrellas reflejen los favoritos actuales.
-function _refrescarEstrellas() {
+// estrellas y los indicadores de lectura reflejen el estado actual.
+function _redibujarGrilla() {
   if (state.allMangas.length && state.viewMode !== 'series' && state.viewMode !== 'colecciones') {
     renderGrid();
   }
@@ -4393,7 +4442,7 @@ async function marcarFavoritos(nombres, favorito) {
   const d = await r.json().catch(() => ({}));
   if (!r.ok || !d.success) throw new Error(d.error || 'No se pudo actualizar');
   state.favs = new Set(d.nombres.map(n => n.toLowerCase()));
-  _refrescarEstrellas();
+  _redibujarGrilla();
 }
 
 async function toggleFavorite() {
