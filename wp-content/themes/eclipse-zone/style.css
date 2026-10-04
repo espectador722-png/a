@@ -1,0 +1,184 @@
+/*
+Theme Name: Eclipse Zone
+Description: Tema de Eclipse Zone: juegos, noticias y mangas traducidos al español. Requiere el plugin Eclipse Zone Core.
+Version: 0.1.0
+Author: Eclipse Zone
+Text Domain: eclipse-zone
+Requires PHP: 7.4
+*/
+
+:root {
+	--primary: #5865f2;
+	--primary-2: #4752c4;
+	--bg: #14161d;
+	--bg-2: #1a1d26;
+	--card: rgba(16, 18, 27, .72);
+	--text: #e9ebff;
+	--muted: #b6baf2;
+	--border: rgba(255, 255, 255, .07);
+	--ok: #3ba55d;
+	--radius: 12px;
+	--gradient: linear-gradient(135deg, #23272a, #313a8f 60%, #5865f2);
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+	margin: 0;
+	font: 16px/1.55 "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+	color: var(--text);
+	background: var(--bg);
+	background-image: var(--gradient);
+	background-attachment: fixed;
+	min-height: 100vh;
+}
+a { color: var(--muted); text-decoration: none; }
+a:hover { color: #fff; }
+img { max-width: 100%; height: auto; display: block; }
+h1, h2, h3 { line-height: 1.2; margin: 0 0 .6em; }
+h1 { font-size: clamp(1.5rem, 4vw, 2.2rem); }
+h2 { font-size: 1.3rem; }
+.screen-reader-text { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+.wrap { max-width: 1200px; margin: 0 auto; padding: 0 16px; }
+.site-main { padding: 24px 0 64px; }
+
+/* ── Cabecera ───────────────────────────────────────────── */
+.site-header {
+	position: sticky; top: 0; z-index: 50;
+	background: rgba(11, 12, 16, .88);
+	backdrop-filter: blur(10px);
+	border-bottom: 1px solid var(--border);
+}
+.site-header .wrap { display: flex; align-items: center; gap: 16px; height: 64px; }
+.brand { display: flex; align-items: center; gap: 10px; color: #fff; font-weight: 700; font-size: 1.15rem; white-space: nowrap; }
+.brand img { width: 36px; height: 36px; border-radius: 50%; }
+.main-nav { display: flex; gap: 4px; margin-left: 8px; }
+.main-nav a { padding: 8px 12px; border-radius: 8px; font-weight: 600; color: var(--muted); }
+.main-nav a:hover, .main-nav .current { background: rgba(88, 101, 242, .18); color: #fff; }
+.header-search { margin-left: auto; display: flex; }
+.header-search input {
+	width: 220px; padding: 9px 14px; border-radius: 999px;
+	border: 1px solid var(--border); background: #1f2330; color: var(--text); font: inherit;
+}
+.header-user { white-space: nowrap; font-weight: 600; }
+
+@media (max-width: 760px) {
+	.site-header .wrap { flex-wrap: wrap; height: auto; padding-top: 10px; padding-bottom: 10px; }
+	.main-nav { order: 3; width: 100%; margin: 0; overflow-x: auto; }
+	.header-search { flex: 1; }
+	.header-search input { width: 100%; }
+	.header-user { display: none; }
+}
+
+/* ── Bloques ────────────────────────────────────────────── */
+.panel { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+.section { margin-bottom: 40px; }
+.section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.section-head a { font-weight: 600; white-space: nowrap; }
+.hero { padding: 36px 0 20px; }
+.hero p { color: var(--muted); max-width: 640px; margin: 0; }
+.archive-head { margin-bottom: 20px; }
+.archive-head p { color: var(--muted); margin: 0; }
+
+/* ── Tarjetas ───────────────────────────────────────────── */
+.grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+.grid--news { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.card {
+	position: relative; display: flex; flex-direction: column;
+	background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+	overflow: hidden; transition: transform .15s, border-color .15s;
+}
+.card:hover { transform: translateY(-3px); border-color: rgba(88, 101, 242, .55); }
+.card__img { aspect-ratio: 16 / 10; object-fit: cover; width: 100%; background: var(--bg-2); }
+.card--manga .card__img { aspect-ratio: 2 / 3; }
+.card__body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.card__title { color: #fff; font-weight: 600; font-size: .95rem; line-height: 1.3; }
+.card__title::after { content: ""; position: absolute; inset: 0; } /* toda la tarjeta es clicable */
+.card__meta { color: var(--muted); font-size: .8rem; }
+.card__badge {
+	position: absolute; top: 8px; left: 8px; z-index: 1;
+	background: rgba(0, 0, 0, .7); color: #fff; font-size: .72rem; font-weight: 700;
+	padding: 3px 8px; border-radius: 6px;
+}
+.card__fav { position: absolute; top: 8px; right: 8px; z-index: 1; color: #fbbf24; font-size: 1.1rem; text-shadow: 0 1px 3px #000; }
+.card__progress { height: 4px; background: rgba(255, 255, 255, .1); }
+.card__progress span { display: block; height: 100%; background: var(--primary); }
+.card__progress--done span { background: var(--ok); }
+
+/* ── Etiquetas y botones ────────────────────────────────── */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0; margin: 0; list-style: none; }
+.chips a {
+	display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: .82rem;
+	background: rgba(88, 101, 242, .16); border: 1px solid rgba(88, 101, 242, .35); color: var(--text);
+}
+.chips a:hover { background: var(--primary); }
+.btn {
+	display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+	padding: 10px 18px; border-radius: 10px; border: 0; cursor: pointer;
+	background: var(--primary); color: #fff; font: 600 .95rem/1.2 inherit;
+}
+.btn:hover { background: var(--primary-2); color: #fff; }
+.btn--ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
+.btn--ghost:hover { background: rgba(255, 255, 255, .06); }
+.btn[aria-pressed="true"] { background: #fbbf24; color: #111; }
+
+/* ── Paginación ─────────────────────────────────────────── */
+.pagination { margin-top: 32px; }
+.pagination .nav-links { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.pagination .page-numbers {
+	min-width: 40px; padding: 8px 12px; text-align: center; border-radius: 8px;
+	background: var(--card); border: 1px solid var(--border); color: var(--text); font-weight: 600;
+}
+.pagination .page-numbers.current, .pagination a.page-numbers:hover { background: var(--primary); color: #fff; }
+
+/* ── Ficha de juego ─────────────────────────────────────── */
+.game { display: grid; gap: 24px; grid-template-columns: minmax(0, 1fr) 320px; align-items: start; }
+@media (max-width: 900px) { .game { grid-template-columns: 1fr; } }
+.game__cover { border-radius: var(--radius); width: 100%; aspect-ratio: 16 / 9; object-fit: cover; margin-bottom: 20px; }
+.game__content { color: var(--text); }
+.game__content p { margin: 0 0 1em; }
+.facts { display: grid; grid-template-columns: auto 1fr; gap: 8px 14px; margin: 0 0 16px; }
+.facts dt { color: var(--muted); font-weight: 600; }
+.facts dd { margin: 0; }
+.downloads { display: flex; flex-direction: column; gap: 8px; }
+.shots { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.shots img { border-radius: 8px; aspect-ratio: 16 / 9; object-fit: cover; width: 100%; }
+.breadcrumbs { font-size: .85rem; color: var(--muted); margin-bottom: 14px; }
+.breadcrumbs a { color: var(--muted); }
+
+/* ── Noticias ───────────────────────────────────────────── */
+.entry { max-width: 780px; }
+.entry__meta { color: var(--muted); font-size: .9rem; margin-bottom: 18px; }
+.entry__content img { border-radius: 8px; margin: 1em 0; }
+
+/* ── Mangas: ficha y lector ─────────────────────────────── */
+.manga-head { display: grid; grid-template-columns: 220px 1fr; gap: 24px; margin-bottom: 28px; }
+@media (max-width: 640px) { .manga-head { grid-template-columns: 1fr; } .manga-head img { max-width: 220px; } }
+.manga-head img { border-radius: var(--radius); aspect-ratio: 2 / 3; object-fit: cover; width: 100%; }
+.manga-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.chapters { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.chapters a {
+	display: flex; justify-content: space-between; gap: 12px; padding: 12px 14px; border-radius: 10px;
+	background: var(--card); border: 1px solid var(--border); color: var(--text);
+}
+.chapters a:hover { border-color: var(--primary); }
+.chapters .is-read { opacity: .55; }
+.chapters small { color: var(--muted); }
+
+.reader-bar {
+	position: sticky; top: 64px; z-index: 40; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+	padding: 10px 12px; margin-bottom: 16px; border-radius: var(--radius);
+	background: rgba(11, 12, 16, .92); border: 1px solid var(--border);
+}
+.reader-bar .count { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
+.reader { display: flex; flex-direction: column; align-items: center; gap: 0; }
+.reader img { width: 100%; max-width: 900px; background: #0b0c10; }
+.reader--page img { display: none; max-height: calc(100vh - 150px); width: auto; cursor: pointer; }
+.reader--page img.is-current { display: block; }
+.reader-end { display: flex; justify-content: center; gap: 10px; margin-top: 20px; }
+
+/* ── Pie ────────────────────────────────────────────────── */
+.site-footer { border-top: 1px solid var(--border); padding: 28px 0; color: var(--muted); font-size: .9rem; background: rgba(11, 12, 16, .6); }
+.site-footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 24px; justify-content: space-between; }
+.site-footer nav { display: flex; flex-wrap: wrap; gap: 14px; }
