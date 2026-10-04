@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="es" data-rol="{{ g.usuario.rol }}" data-usuario="{{ g.usuario.usuario }}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0f0f0f">
+<title>Usuarios · Biblioteca de Manga</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<link rel="stylesheet" href="/static/vendor/bootstrap-icons/font/bootstrap-icons.css">
+<link rel="stylesheet" href="/static/css/sesion.css">
+<script src="/static/js/sesion.js"></script>
+<style>
+:root{--bg:#0f0f0f;--surface:#1a1a20;--surface2:#22222a;--border:rgba(255,255,255,.1);--text:#eee;--muted:#9a98a8;--accent:#ec407a;--danger:#ef7b78;--ok:#66bb6a}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:15px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
+.top{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--surface)}
+.top h1{font-size:18px;margin:0;flex:1}
+.top a{color:var(--muted);text-decoration:none;font-size:14px}
+.wrap{max-width:760px;margin:0 auto;padding:20px 16px}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:18px}
+.panel h2{font-size:15px;margin:0 0 12px;color:var(--muted);font-weight:600}
+.fila{display:flex;flex-wrap:wrap;gap:8px}
+input,select{padding:9px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font:inherit;min-width:0}
+input{flex:1 1 150px}
+.btn{padding:9px 14px;border:0;border-radius:8px;background:var(--surface2);color:var(--text);font:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:hover{filter:brightness(1.2)}
+.btn.primary{background:var(--accent);color:#fff}
+.btn.peligro{color:var(--danger)}
+.btn.chico{padding:6px 10px;font-size:13px}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:10px 6px;border-bottom:1px solid var(--border);vertical-align:middle}
+th{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+td.acciones{text-align:right;white-space:nowrap}
+.yo{font-size:11px;color:var(--accent);margin-left:6px}
+.msg{font-size:13px;min-height:1.2em;margin-top:10px}
+.msg.error{color:var(--danger)}.msg.ok{color:var(--ok)}
+.act-head{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.act-head h2{margin:0;flex:1}
+.act{font-size:13px}
+.act td{padding:7px 6px}
+.act .cuando{color:var(--muted);white-space:nowrap}
+.act .det{color:var(--muted);word-break:break-word}
+.act .fallo{color:var(--danger)}
+.act .quien{font-weight:600}
+@media(max-width:560px){
+  thead{display:none}
+  tr{display:grid;grid-template-columns:1fr auto;gap:4px 10px;padding:10px 0;border-bottom:1px solid var(--border)}
+  td{border:0;padding:2px 0}
+  td.acciones{grid-column:1/-1;text-align:left;display:flex;flex-wrap:wrap;gap:6px}
+}
+</style>
+</head>
+<body>
+<div class="top">
+  <a href="/manga" title="Volver a la biblioteca"><i class="bi bi-arrow-left"></i></a>
+  <h1><i class="bi bi-people"></i> Usuarios</h1>
+</div>
+
+<div class="wrap">
+  <form class="panel" id="formNuevo">
+    <h2>Nueva cuenta</h2>
+    <div class="fila">
+      <input name="usuario" placeholder="Usuario" autocomplete="off" autocapitalize="off" required
+             pattern="[A-Za-z0-9_.\-]{3,32}" title="3 a 32 letras, números, _ . -">
+      <input name="password" type="password" placeholder="Contraseña (mín. 8)" autocomplete="new-password" minlength="8" required>
+      <select name="rol">
+        <option value="lector">Lector</option>
+        <option value="admin">Admin</option>
+      </select>
+      <button class="btn primary" type="submit"><i class="bi bi-person-plus"></i> Crear</button>
+    </div>
+    <div class="msg" id="msgNuevo"></div>
+  </form>
+
+  <div class="panel">
+    <h2>Cuentas</h2>
+    <table>
+      <thead><tr><th>Usuario</th><th>Rol</th><th>Creada</th><th></th></tr></thead>
+      <tbody id="lista"><tr><td colspan="4">Cargando…</td></tr></tbody>
+    </table>
+    <div class="msg" id="msgLista"></div>
+  </div>
+
+  <div class="panel">
+    <div class="act-head">
+      <h2>Actividad reciente</h2>
+      <select id="filtroUsuario"><option value="">Todos los usuarios</option></select>
+      <button class="btn chico" id="recargarActividad" type="button"><i class="bi bi-arrow-clockwise"></i> Actualizar</button>
+    </div>
+    <table class="act">
+      <thead><tr><th>Cuándo</th><th>Quién</th><th>Qué</th><th>Detalle</th></tr></thead>
+      <tbody id="actividad"><tr><td colspan="4">Cargando…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const YO = document.documentElement.dataset.usuario.toLowerCase();
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+function aviso(id, texto, ok) {
+  const el = document.getElementById(id);
+  el.textContent = texto;
+  el.className = 'msg ' + (ok ? 'ok' : 'error');
+}
+
+async function api(url, opciones = {}) {
+  const r = await fetch(url, {
+    ...opciones,
+    headers: { 'Content-Type': 'application/json', ...(opciones.headers || {}) },
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || `Error ${r.status}`);
+  return d;
+}
+
+async function cargar() {
+  const { usuarios } = await api('/api/usuarios');
+  usuarios.sort((a, b) => a.usuario.localeCompare(b.usuario));
+  const tbody = document.getElementById('lista');
+  tbody.innerHTML = usuarios.map(u => {
+    const yo = u.usuario.toLowerCase() === YO;
+    return `<tr data-usuario="${esc(u.usuario)}">
+      <td><b>${esc(u.usuario)}</b>${yo ? '<span class="yo">(vos)</span>' : ''}</td>
+      <td>
+        <select data-accion="rol">
+          <option value="lector" ${u.rol === 'lector' ? 'selected' : ''}>Lector</option>
+          <option value="admin" ${u.rol === 'admin' ? 'selected' : ''}>Admin</option>
+        </select>
+      </td>
+      <td style="color:var(--muted);font-size:13px">${esc((u.creado || '').slice(0, 10))}</td>
+      <td class="acciones">
+        <button class="btn chico" data-accion="password"><i class="bi bi-key"></i> Contraseña</button>
+        ${yo ? '' : '<button class="btn chico peligro" data-accion="borrar"><i class="bi bi-trash"></i> Borrar</button>'}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+document.getElementById('lista').addEventListener('change', async e => {
+  if (e.target.dataset.accion !== 'rol') return;
+  const nombre = e.target.closest('tr').dataset.usuario;
+  try {
+    await api(`/api/usuarios/${encodeURIComponent(nombre)}`, {
+      method: 'PATCH', body: JSON.stringify({ rol: e.target.value }),
+    });
+    aviso('msgLista', `Rol de ${nombre} actualizado.`, true);
+    if (nombre.toLowerCase() === YO && e.target.value !== 'admin') location.href = '/manga';
+  } catch (err) {
+    aviso('msgLista', err.message);
+    cargar();
+  }
+});
+
+document.getElementById('lista').addEventListener('click', async e => {
+  const btn = e.target.closest('button[data-accion]');
+  if (!btn) return;
+  const nombre = btn.closest('tr').dataset.usuario;
+  try {
+    if (btn.dataset.accion === 'borrar') {
+      if (!confirm(`¿Borrar la cuenta "${nombre}"?`)) return;
+      await api(`/api/usuarios/${encodeURIComponent(nombre)}`, { method: 'DELETE' });
+      aviso('msgLista', `Cuenta ${nombre} borrada.`, true);
+      cargar();
+    } else if (btn.dataset.accion === 'password') {
+      const nueva = prompt(`Nueva contraseña para "${nombre}" (mínimo 8 caracteres):`);
+      if (!nueva) return;
+      await api(`/api/usuarios/${encodeURIComponent(nombre)}`, {
+        method: 'PATCH', body: JSON.stringify({ password: nueva }),
+      });
+      aviso('msgLista', `Contraseña de ${nombre} cambiada. Sus sesiones abiertas se cerraron.`, true);
+    }
+  } catch (err) {
+    aviso('msgLista', err.message);
+  }
+});
+
+document.getElementById('formNuevo').addEventListener('submit', async e => {
+  e.preventDefault();
+  const f = e.target;
+  try {
+    await api('/api/usuarios', {
+      method: 'POST',
+      body: JSON.stringify({ usuario: f.usuario.value, password: f.password.value, rol: f.rol.value }),
+    });
+    aviso('msgNuevo', `Cuenta ${f.usuario.value} creada.`, true);
+    f.reset();
+    cargar();
+  } catch (err) {
+    aviso('msgNuevo', err.message);
+  }
+});
+
+// ── Actividad reciente ───────────────────────────────────────────────────────
+const ACCIONES = {
+  'login': 'Entró',
+  'login fallido': 'Intento de entrada fallido',
+  'POST /api/me/password': 'Cambió su contraseña',
+  'POST /delete_manga': 'Borró un manga',
+  'POST /api/manga/mover': 'Movió un manga',
+  'POST /api/manga/rename': 'Renombró un manga',
+  'POST /api/manga/serie': 'Cambió la serie',
+  'POST /api/mangas/agrupar_serie': 'Agrupó una serie',
+  'POST /add_manga_category': 'Agregó un tag',
+  'POST /remove_manga_category': 'Quitó un tag',
+  'POST /api/manga/exportar': 'Exportó un manga',
+  'POST /api/manga/abrir-carpeta': 'Abrió la carpeta',
+  'POST /api/manga/traductor/lote': 'Encoló traducciones',
+  'POST /api/descargas/hitomi/descargar': 'Descargó de hitomi',
+  'POST /api/descargas/3hentai/descargar': 'Descargó de 3hentai',
+  'POST /api/usuarios': 'Creó una cuenta',
+};
+function describirAccion(a) {
+  if (ACCIONES[a]) return ACCIONES[a];
+  let m;
+  if ((m = a.match(/^PATCH \/api\/usuarios\/(.+)$/))) return `Editó la cuenta ${decodeURIComponent(m[1])}`;
+  if ((m = a.match(/^DELETE \/api\/usuarios\/(.+)$/))) return `Borró la cuenta ${decodeURIComponent(m[1])}`;
+  if (a.startsWith('POST /api/colecciones') || a.startsWith('DELETE /api/colecciones')) return 'Cambió una colección';
+  if (a.startsWith('POST /api/categorias') || a.startsWith('DELETE /api/categorias')) return 'Cambió una categoría';
+  if (a.startsWith('POST /api/manga/traductor') || a.startsWith('DELETE /api/manga/traductor')) return 'Traductor';
+  return a;
+}
+function describirDetalle(d) {
+  if (!d) return '';
+  d = { ...d };
+  const partes = [];
+  if (d.manga_name && d.new_name) {
+    partes.push(`${d.manga_name} → ${d.new_name}`);
+    delete d.manga_name; delete d.new_name;
+  } else if (d.manga_name && d.destino) {
+    partes.push(`${d.manga_name} → ${d.destino}`);
+    delete d.manga_name; delete d.destino; delete d.origen;
+  } else if (d.manga_name) {
+    partes.push(d.manga_name);
+    delete d.manga_name;
+  }
+  for (const [k, v] of Object.entries(d)) {
+    partes.push(`${k}: ${Array.isArray(v) ? v.join(', ') : v}`);
+  }
+  return partes.join(' · ');
+}
+async function cargarActividad() {
+  const usuario = document.getElementById('filtroUsuario').value;
+  const { eventos } = await api('/api/actividad?limite=150' + (usuario ? '&usuario=' + encodeURIComponent(usuario) : ''));
+  const tbody = document.getElementById('actividad');
+  if (!eventos.length) { tbody.innerHTML = '<tr><td colspan="4" style="color:var(--muted)">Sin actividad todavía.</td></tr>'; return; }
+  tbody.innerHTML = eventos.map(e => `<tr>
+    <td class="cuando">${esc(new Date(e.fecha).toLocaleString())}</td>
+    <td class="quien">${esc(e.usuario)}</td>
+    <td class="${e.ok ? '' : 'fallo'}">${e.ok ? '' : '<i class="bi bi-x-circle"></i> '}${esc(describirAccion(e.accion))}</td>
+    <td class="det">${esc([describirDetalle(e.detalle), e.ip].filter(Boolean).join(' · '))}</td>
+  </tr>`).join('');
+}
+async function llenarFiltroUsuarios() {
+  const { usuarios } = await api('/api/usuarios');
+  const sel = document.getElementById('filtroUsuario');
+  const actual = sel.value;
+  sel.innerHTML = '<option value="">Todos los usuarios</option>' + usuarios
+    .map(u => u.usuario).sort((a, b) => a.localeCompare(b))
+    .map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  sel.value = actual;
+}
+document.getElementById('filtroUsuario').addEventListener('change', () => cargarActividad().catch(() => {}));
+document.getElementById('recargarActividad').addEventListener('click', () => cargarActividad().catch(() => {}));
+
+cargar().catch(err => aviso('msgLista', err.message));
+llenarFiltroUsuarios().catch(() => {});
+cargarActividad().catch(() => {});
+</script>
+</body>
+</html>

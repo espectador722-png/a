@@ -1,0 +1,55 @@
+/* static/css/sesion.css — interfaz según el rol de la sesión.
+ *
+ * <html data-rol="..."> lo pone el servidor al renderizar la página. Mientras
+ * no sea "admin", los controles de administración quedan ocultos. Es solo
+ * cosmético: el servidor rechaza esas acciones igual (routes/auth.py).
+ *
+ * Se ocultan por el onclick que llaman, así también cubre los botones que
+ * index.html genera por JavaScript.
+ */
+html:not([data-rol="admin"]) .solo-admin,
+html:not([data-rol="admin"]) .col-new-card,
+html:not([data-rol="admin"]) #colItemGrid .btn-close,
+html:not([data-rol="admin"]) #colItemGrid .btn-portada,
+html:not([data-rol="admin"]) [onclick^="exportarManga("],
+html:not([data-rol="admin"]) [onclick^="ungroupSerie("],
+html:not([data-rol="admin"]) [onclick^="traducirPendientesCategoria("],
+html:not([data-rol="admin"]) [onclick^="traducirMangaCompleto("],
+html:not([data-rol="admin"]) [onclick^="renameSerie("],
+html:not([data-rol="admin"]) [onclick^="renameColeccion("],
+html:not([data-rol="admin"]) [onclick^="removeCatFromManga("],
+html:not([data-rol="admin"]) [onclick^="deleteManga("],
+html:not([data-rol="admin"]) [onclick^="deleteColeccion("],
+html:not([data-rol="admin"]) [onclick^="createAndAddToColeccion("],
+html:not([data-rol="admin"]) [onclick^="openColPicker("],
+html:not([data-rol="admin"]) [onclick^="confirmarReemplazoIdioma("],
+html:not([data-rol="admin"]) [onclick^="bulkTraducir("],
+html:not([data-rol="admin"]) [onclick^="bulkDelete("],
+html:not([data-rol="admin"]) [onclick^="bulkAssignSerie("],
+html:not([data-rol="admin"]) [onclick^="borrarTraduccion("],
+html:not([data-rol="admin"]) [onclick^="addNewCategory("],
+html:not([data-rol="admin"]) [onclick^="addCatToManga("],
+html:not([data-rol="admin"]) [onclick^="abrirCarpetaManga("],
+html:not([data-rol="admin"]) [onclick^="_cancelarDeCola("],
+html:not([data-rol="admin"]) [onclick^="toggleQueuePanel("] {
+  display: none !important;
+}
+
+/* Menú de usuario (lo inserta static/js/sesion.js en la barra de navegación) */
+.sesion-menu { position: relative; display: inline-flex; }
+.sesion-panel {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 2000;
+  min-width: 200px; padding: 6px; border-radius: 10px;
+  background: #1e1e26; border: 1px solid rgba(255,255,255,.12);
+  box-shadow: 0 8px 24px rgba(0,0,0,.45); display: none;
+}
+.sesion-panel.abierto { display: block; }
+.sesion-panel .sesion-quien { padding: 6px 10px 8px; color: #9a98a8; font-size: 12px;
+  border-bottom: 1px solid rgba(255,255,255,.08); margin-bottom: 4px; }
+.sesion-panel .sesion-quien b { color: #eee; font-size: 14px; display: block; }
+.sesion-panel a, .sesion-panel button {
+  display: flex; gap: 8px; align-items: center; width: 100%; padding: 8px 10px;
+  border: 0; border-radius: 6px; background: none; color: #eee; text-decoration: none;
+  font: inherit; font-size: 14px; text-align: left; cursor: pointer;
+}
+.sesion-panel a:hover, .sesion-panel button:hover { background: rgba(255,255,255,.08); }

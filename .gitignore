@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+# Datos locales (por si DATA_DIR/MANGA_DIR apuntan dentro del proyecto)
+usuarios.json
+secret_key
+*.db
