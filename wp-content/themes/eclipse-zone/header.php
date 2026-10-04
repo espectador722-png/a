@@ -41,4 +41,13 @@
 		</span>
 	</div>
 </header>
+<?php if ( $ezt_discord = get_theme_mod( 'ezt_discord_url' ) ) : ?>
+	<div class="strip" data-ez-strip>
+		<div class="wrap">
+			<span><?php echo esc_html( get_theme_mod( 'ezt_discord_text', '¡Únete a nuestra comunidad y no te pierdas las novedades!' ) ); ?></span>
+			<a class="btn btn--discord" href="<?php echo esc_url( $ezt_discord ); ?>" target="_blank" rel="noopener">Discord</a>
+			<button type="button" class="strip__close" data-ez-strip-close aria-label="Cerrar aviso">✕</button>
+		</div>
+	</div>
+<?php endif; ?>
 <main id="contenido" class="site-main">

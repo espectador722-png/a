@@ -8,6 +8,7 @@
  * ez_imagen             URL de portada externa (si no hay imagen destacada)
  * ez_fecha_registro     fecha original de publicación (Y-m-d)
  * ez_source_key         clave del juego en juegos.json (para re-importar)
+ * ez_destacado          "1" si aparece en el carrusel del inicio
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -15,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 add_action( 'init', function () {
-	foreach ( array( 'ez_version', 'ez_links', 'ez_imagenes', 'ez_imagen', 'ez_fecha_registro', 'ez_source_key' ) as $key ) {
+	foreach ( array( 'ez_version', 'ez_destacado', 'ez_links', 'ez_imagenes', 'ez_imagen', 'ez_fecha_registro', 'ez_source_key' ) as $key ) {
 		register_post_meta( 'juego', $key, array(
 			'type'          => 'string',
 			'single'        => true,
@@ -73,6 +74,8 @@ function ezc_render_meta_box( $post ) {
 	?>
 	<p><label><strong>Versión</strong><br>
 		<input type="text" name="ez_version" value="<?php echo esc_attr( $version ); ?>" class="regular-text" placeholder="v0.109"></label></p>
+	<p><label><input type="checkbox" name="ez_destacado" value="1" <?php checked( get_post_meta( $post->ID, 'ez_destacado', true ), '1' ); ?>>
+		<strong>Destacado</strong> (aparece en el carrusel del inicio)</label></p>
 	<p><label><strong>Portada (URL externa, opcional si hay imagen destacada)</strong><br>
 		<input type="url" name="ez_imagen" value="<?php echo esc_attr( $imagen ); ?>" class="large-text"></label></p>
 	<p><label><strong>Links de descarga</strong> — uno por línea: <code>Nombre | URL</code><br>
@@ -91,6 +94,7 @@ add_action( 'save_post_juego', function ( $post_id ) {
 	}
 
 	update_post_meta( $post_id, 'ez_version', sanitize_text_field( wp_unslash( $_POST['ez_version'] ?? '' ) ) );
+	update_post_meta( $post_id, 'ez_destacado', empty( $_POST['ez_destacado'] ) ? '' : '1' );
 	update_post_meta( $post_id, 'ez_imagen', esc_url_raw( wp_unslash( $_POST['ez_imagen'] ?? '' ) ) );
 
 	$links = array();

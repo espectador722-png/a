@@ -13,6 +13,8 @@ while ( have_posts() ) :
 	$ez_shots = ezc_get_screenshots( $ez_id );
 	$ez_facts = array_filter( array(
 		'Versión'      => get_post_meta( $ez_id, 'ez_version', true ),
+		'Motor'        => ezt_term_names( $ez_id, 'motor' ),
+		'Desarrollador' => ezt_term_names( $ez_id, 'desarrollador' ),
 		'Plataforma'   => ezt_term_names( $ez_id, 'plataforma' ),
 		'Traductor'    => ezt_term_names( $ez_id, 'traductor' ),
 		'Estado'       => ezt_term_names( $ez_id, 'estado' ),
@@ -54,6 +56,26 @@ while ( have_posts() ) :
 				</dl>
 				<?php echo ezt_chips( $ez_id, 'genero' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escapado en ezt_chips ?>
 
+				<?php
+				$ez_r    = ezc_rating( $ez_id );
+				$ez_tuyo = ezc_user_vote( $ez_id );
+				?>
+				<div class="vote" data-ez-vote="<?php echo (int) $ez_id; ?>">
+					<div class="vote__stars" role="group" aria-label="Puntuar del 1 al 5">
+						<?php for ( $i = 1; $i <= 5; $i++ ) : ?>
+							<button type="button" value="<?php echo (int) $i; ?>" aria-label="<?php echo (int) $i; ?> de 5" aria-pressed="<?php echo $i <= $ez_tuyo ? 'true' : 'false'; ?>">★</button>
+						<?php endfor; ?>
+					</div>
+					<p class="vote__result" data-ez-vote-result>
+						<?php
+						echo $ez_r['votos']
+							? esc_html( sprintf( '%s de 5 · %d %s', number_format_i18n( $ez_r['media'], 1 ), $ez_r['votos'], 1 === $ez_r['votos'] ? 'voto' : 'votos' ) . ( $ez_tuyo ? ' · tu voto: ' . $ez_tuyo : '' ) )
+							: 'Sin votos todavía. ¡Sé el primero!';
+						?>
+					</p>
+					<p class="vote__views"><span aria-hidden="true">👁</span> <span data-ez-views><?php echo esc_html( number_format_i18n( ezc_views( $ez_id ) ) ); ?></span> <?php echo 1 === ezc_views( $ez_id ) ? 'vista' : 'vistas'; ?></p>
+				</div>
+
 				<h2 style="margin-top:20px">Descargar <?php the_title(); ?> en español</h2>
 				<?php if ( $ez_links ) : ?>
 					<div class="downloads">
@@ -90,7 +112,7 @@ while ( have_posts() ) :
 			?>
 			<section class="section" style="margin-top:40px">
 				<h2>Juegos relacionados</h2>
-				<div class="grid">
+				<div class="grid grid--games">
 					<?php
 					global $post;
 					foreach ( $ez_related as $post ) {

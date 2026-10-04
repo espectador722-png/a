@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'EZT_VERSION', '0.1.0' );
+define( 'EZT_VERSION', '0.2.0' );
 
 add_action( 'after_setup_theme', function () {
 	add_theme_support( 'title-tag' );
@@ -29,17 +29,28 @@ add_action( 'after_switch_theme', function () {
 add_action( 'wp_enqueue_scripts', function () {
 	wp_enqueue_style( 'eclipse-zone', get_stylesheet_uri(), array(), EZT_VERSION );
 
-	// JS solo donde hace falta: el contenido ya llega completo en el HTML.
-	if ( is_singular( array( 'juego', 'manga' ) ) && is_user_logged_in() ) {
-		wp_enqueue_script( 'ez-acciones', get_theme_file_uri( 'assets/acciones.js' ), array(), EZT_VERSION, true );
-		wp_localize_script( 'ez-acciones', 'EZ', array(
-			'api'   => esc_url_raw( rest_url( 'ez/v1/' ) ),
-			'nonce' => wp_create_nonce( 'wp_rest' ),
-		) );
-	}
+	// JS chico y diferido: carrusel, pestañas del top, franja de Discord,
+	// contador de vistas, votos y favoritos. El contenido ya llega en el HTML.
+	wp_enqueue_script( 'ez-ui', get_theme_file_uri( 'assets/ui.js' ), array(), EZT_VERSION, array( 'in_footer' => true, 'strategy' => 'defer' ) );
+	wp_localize_script( 'ez-ui', 'EZ', array(
+		'api'    => esc_url_raw( rest_url( 'ez/v1/' ) ),
+		'nonce'  => is_user_logged_in() ? wp_create_nonce( 'wp_rest' ) : '',
+		'logged' => is_user_logged_in(),
+		'login'  => wp_login_url( is_singular() ? get_permalink() : home_url( '/' ) ),
+		'vista'  => is_singular( array( 'juego', 'manga' ) ) ? get_queried_object_id() : 0,
+	) );
 	if ( is_singular( 'manga' ) && function_exists( 'ezc_manga_pages' ) && ezc_manga_pages() ) {
-		wp_enqueue_script( 'ez-lector', get_theme_file_uri( 'assets/lector.js' ), array(), EZT_VERSION, true );
+		wp_enqueue_script( 'ez-lector', get_theme_file_uri( 'assets/lector.js' ), array( 'ez-ui' ), EZT_VERSION, array( 'in_footer' => true, 'strategy' => 'defer' ) );
 	}
+} );
+
+// Apariencia → Personalizar → Eclipse Zone: enlace de Discord de la franja.
+add_action( 'customize_register', function ( $wp_customize ) {
+	$wp_customize->add_section( 'ezt', array( 'title' => 'Eclipse Zone', 'priority' => 30 ) );
+	$wp_customize->add_setting( 'ezt_discord_url', array( 'default' => '', 'sanitize_callback' => 'esc_url_raw' ) );
+	$wp_customize->add_control( 'ezt_discord_url', array( 'label' => 'Invitación de Discord (vacío = sin franja)', 'section' => 'ezt', 'type' => 'url' ) );
+	$wp_customize->add_setting( 'ezt_discord_text', array( 'default' => '¡Únete a nuestra comunidad y no te pierdas las novedades!', 'sanitize_callback' => 'sanitize_text_field' ) );
+	$wp_customize->add_control( 'ezt_discord_text', array( 'label' => 'Texto de la franja', 'section' => 'ezt', 'type' => 'text' ) );
 } );
 
 // Sin el plugin, el tema no tiene qué mostrar: avisar en el admin.
@@ -88,4 +99,31 @@ function ezt_breadcrumbs( array $items ) {
 		echo ' › ' . ( is_string( $url ) ? '<a href="' . esc_url( $url ) . '">' . esc_html( $label ) . '</a>' : esc_html( $label ) );
 	}
 	echo '</nav>';
+}
+
+/** "hace 8 horas" */
+function ezt_ago( $post = null ) {
+	return 'hace ' . human_time_diff( (int) get_post_modified_time( 'U', true, $post ), time() );
+}
+
+/** Clase de color para el motor: ren-py, unity, rpg-maker… */
+function ezt_engine( $post_id ) {
+	$terms = get_the_terms( $post_id, 'motor' );
+	return ( $terms && ! is_wp_error( $terms ) ) ? $terms[0] : null;
+}
+
+/** Bloque de puntuación: ★ 4,6 (12). Sin votos: ★ — (0). */
+function ezt_rating_html( $post_id ) {
+	$r = function_exists( 'ezc_rating' ) ? ezc_rating( $post_id ) : array( 'media' => 0, 'votos' => 0 );
+	return sprintf(
+		'<span class="stat stat--rating" title="%3$s"><span aria-hidden="true">★</span> %1$s <small>(%2$d)</small></span>',
+		$r['votos'] ? esc_html( number_format_i18n( $r['media'], 1 ) ) : '—',
+		(int) $r['votos'],
+		esc_attr( sprintf( '%s de 5, %d votos', number_format_i18n( $r['media'], 1 ), $r['votos'] ) )
+	);
+}
+
+function ezt_views_html( $post_id ) {
+	$v = function_exists( 'ezc_views' ) ? ezc_views( $post_id ) : 0;
+	return sprintf( '<span class="stat" title="%1$s vistas"><span aria-hidden="true">👁</span> %1$s</span>', esc_html( number_format_i18n( $v ) ) );
 }

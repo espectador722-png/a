@@ -31,6 +31,16 @@ El sitio anterior enlazaba solo 100 de ~590 juegos desde `/juegos/` y 12 desde e
    Con WP-CLI: `wp eclipse importar juegos` / `wp eclipse importar noticias`.
 7. Para que la gente pueda crear cuentas: **Ajustes → Generales → "Cualquiera puede registrarse"**, con rol "Suscriptor".
 
+## Inicio y tarjetas
+
+- **Carrusel "Destacados"**: los juegos con la casilla **Destacado** marcada (en "Datos del juego"). Si no hay ninguno, muestra los más vistos del mes.
+- **Top** con pestañas **Semana / Mes / Año**, según las vistas reales.
+- **Tarjetas de juego**: traductor y bandera arriba; motor (Ren'Py, Unity…, con su color), estado y versión sobre la imagen; descripción corta; "hace X"; vistas; puntuación ★ con cantidad de votos. **Al pasar el mouse** se despliegan el desarrollador y los géneros.
+- **Vistas**: se cuentan con un pedido JS al abrir la ficha (los bots no suman), una por visitante cada 6 horas.
+- **Votos**: de 1 a 5 estrellas en la ficha, solo con sesión iniciada; un voto por usuario, que se puede cambiar.
+- **Motor y desarrollador**: si `juegos.json` trae `motor` o `desarrollador`, se importan. Si no, el motor se detecta cuando aparece entre las categorías ("Ren'Py", "Unity"…). También se pueden cargar a mano.
+- **Franja de Discord**: **Apariencia → Personalizar → Eclipse Zone** → pegá la invitación. Quien la cierra no la vuelve a ver.
+
 ## Mangas
 
 - **Serie con capítulos**: creá el manga (título, sinopsis, portada, etiquetas) sin páginas. Después creá cada capítulo como otro manga, con la serie elegida en **Atributos → Superior** y el número en **Orden**.

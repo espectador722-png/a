@@ -40,6 +40,17 @@ function ezc_load_json( $source ) {
 	return is_array( $data ) ? $data : new WP_Error( 'ezc_json', 'El archivo no es un JSON con una lista' );
 }
 
+/** Nombre normalizado si el texto es un motor de juegos conocido. */
+function ezc_known_engine( $text ) {
+	$key     = preg_replace( '/[^a-z0-9]/', '', strtolower( remove_accents( (string) $text ) ) );
+	$engines = array(
+		'renpy' => "Ren'Py", 'unity' => 'Unity', 'rpgmaker' => 'RPG Maker', 'rpgm' => 'RPG Maker',
+		'godot' => 'Godot', 'unreal' => 'Unreal Engine', 'unrealengine' => 'Unreal Engine',
+		'html' => 'HTML', 'html5' => 'HTML', 'flash' => 'Flash', 'wolfrpg' => 'Wolf RPG', 'tyrano' => 'TyranoBuilder',
+	);
+	return $engines[ $key ] ?? null;
+}
+
 /** El JSON tiene campos que a veces son string y a veces array. */
 function ezc_as_list( $v ) {
 	if ( is_array( $v ) ) {
@@ -138,7 +149,19 @@ function ezc_import_juegos( $source = EZC_JUEGOS_URL ) {
 		update_post_meta( $id, 'ez_imagenes', wp_json_encode( $imagenes ) );
 		update_post_meta( $id, 'ez_imagen', esc_url_raw( (string) ( $j['imagen'] ?? ( $imagenes[0] ?? '' ) ) ) );
 
-		wp_set_object_terms( $id, ezc_as_list( $j['categorias'] ?? array() ), 'genero' );
+		// Motor: campo propio si existe; si no, sale de las categorías ("Ren'Py",
+		// "Unity"…), que en el JSON están mezcladas con los géneros.
+		$categorias = ezc_as_list( $j['categorias'] ?? array() );
+		$motores    = ezc_as_list( $j['motor'] ?? $j['engine'] ?? array() );
+		foreach ( $categorias as $k => $c ) {
+			if ( $m = ezc_known_engine( $c ) ) {
+				$motores[] = $m;
+				unset( $categorias[ $k ] );
+			}
+		}
+		wp_set_object_terms( $id, array_values( $categorias ), 'genero' );
+		wp_set_object_terms( $id, array_values( array_unique( $motores ) ), 'motor' );
+		wp_set_object_terms( $id, ezc_as_list( $j['desarrollador'] ?? $j['developer'] ?? array() ), 'desarrollador' );
 		wp_set_object_terms( $id, ezc_as_list( $j['plataformas'] ?? $j['plataforma'] ?? array() ), 'plataforma' );
 		wp_set_object_terms( $id, ezc_as_list( $j['traductores'] ?? array() ), 'traductor' );
 		wp_set_object_terms( $id, ezc_as_list( $j['estado'] ?? array() ), 'estado' );

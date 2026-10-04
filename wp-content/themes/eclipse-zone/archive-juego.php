@@ -23,7 +23,7 @@ if ( is_tax() ) {
 	</header>
 
 	<?php if ( have_posts() ) : ?>
-		<div class="grid">
+		<div class="grid grid--games">
 			<?php
 			while ( have_posts() ) {
 				the_post();

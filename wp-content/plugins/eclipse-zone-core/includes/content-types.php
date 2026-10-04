@@ -7,6 +7,7 @@
  *   /juegos/  /juegos/page/2/ catálogo paginado
  *   /genero/<slug>/           equivalente a /categoria/ del sitio anterior
  *   /plataforma/<slug>/  /traductor/<slug>/  /estado/<slug>/
+ *   /motor/<slug>/  /desarrollador/<slug>/
  *   /noticia/<slug>/  /noticias/
  * Mangas: ver mangas.php.
  */
@@ -58,6 +59,8 @@ function ezc_register_content_types() {
 		'plataforma' => array( 'Plataformas', 'Plataforma', true ),
 		'traductor'  => array( 'Traductores', 'Traductor', false ),
 		'estado'     => array( 'Estados', 'Estado', true ),
+		'motor'      => array( 'Motores', 'Motor', true ),       // Ren'Py, Unity, RPG Maker…
+		'desarrollador' => array( 'Desarrolladores', 'Desarrollador', false ),
 	);
 	foreach ( $taxonomies as $tax => list( $plural, $singular, $hierarchical ) ) {
 		register_taxonomy( $tax, 'juego', array(
@@ -79,7 +82,7 @@ add_action( 'pre_get_posts', function ( $query ) {
 	if ( is_admin() || ! $query->is_main_query() ) {
 		return;
 	}
-	if ( $query->is_post_type_archive( 'juego' ) || $query->is_tax( array( 'genero', 'plataforma', 'traductor', 'estado' ) ) ) {
+	if ( $query->is_post_type_archive( 'juego' ) || $query->is_tax( array( 'genero', 'plataforma', 'traductor', 'estado', 'motor', 'desarrollador' ) ) ) {
 		$query->set( 'posts_per_page', 48 );
 		$query->set( 'orderby', 'modified' );
 		$query->set( 'order', 'DESC' );
