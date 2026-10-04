@@ -1,8 +1,8 @@
 # routes/auth.py — usuarios, inicio de sesión y permisos por rol
 #
 # Roles:
-#   lector : entra con su cuenta, navega la biblioteca, lee (guarda progreso)
-#            y marca sus propios favoritos.
+#   lector : entra con su cuenta, navega la biblioteca, lee y marca favoritos
+#            (el progreso, el historial y los favoritos son de cada usuario).
 #   admin  : además descarga, borra/mueve/renombra, traduce, exporta,
 #            revisa duplicados y administra usuarios.
 #
@@ -53,8 +53,8 @@ PREFIJOS_ADMIN = (
 )
 
 # Únicas escrituras (POST/PUT/PATCH/DELETE) permitidas a un lector.
-ESCRITURA_LECTOR = {"/save_reading_progress", "/logout", "/api/me/password",
-                    "/api/favoritos"}
+ESCRITURA_LECTOR = {"/save_reading_progress", "/cleanup_reading_progress",
+                    "/logout", "/api/me/password", "/api/favoritos"}
 
 _METODOS_LECTURA = {"GET", "HEAD", "OPTIONS"}
 

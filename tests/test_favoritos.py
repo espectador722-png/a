@@ -44,7 +44,7 @@ def test_migracion_de_la_carpeta_favoritos(app):
     otro = _cliente(app, "alguien1")
     assert _favoritos(otro) == []                  # no es la cuenta destino
 
-    duenio = _cliente(app, Config.FAVORITOS_CARPETA_USUARIO, rol="admin")
+    duenio = _cliente(app, Config.USUARIO_PRINCIPAL, rol="admin")
     assert set(_favoritos(duenio)) == {"Viejo Favorito A", "Viejo Favorito B"}
 
     # Una sola vez: si los quita, no vuelven a aparecer

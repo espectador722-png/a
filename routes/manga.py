@@ -9,12 +9,13 @@ from difflib import SequenceMatcher
 from datetime import datetime
 from flask import (
     Blueprint, jsonify, request, send_from_directory,
-    render_template, redirect, g,
+    render_template, redirect, g, has_request_context,
 )
 from config import Config
 from routes import categorias
 from routes import colecciones
 from routes import favoritos
+from routes import progreso
 from routes import indice
 from routes.helpers import (
     get_cached, invalidate_cache, find_content_dir, load_json, save_json,
@@ -43,8 +44,6 @@ def _reload_section_dirs(_dirs=None) -> None:
 _reload_section_dirs()
 categorias.on_change("manga", _reload_section_dirs)
 
-MAX_PROGRESS_ENTRIES = 50
-KEEP_PROGRESS_ENTRIES = 30
 METADATA_FILE = "metadata.json"
 
 
@@ -224,12 +223,13 @@ def _build_manga_item(nombre: str, section: str, archivo: str, meta: dict) -> di
         "tags":              _tags_as_names(meta.get("tags", [])),
         "tags_ns":           _tags_with_ns(meta.get("tags", [])),
         "num_tags":          len(_tags_as_names(meta.get("tags", []))),
-        "paginas_leidas":    meta.get("paginas_leidas", 0),
-        "paginas_max":       meta.get("paginas_max", meta.get("paginas_leidas", 0)),
+        # El progreso es de cada usuario: lo completa _con_progreso_del_usuario
+        "paginas_leidas":    0,
+        "paginas_max":       0,
         "paginas_total":     meta.get("paginas_total", 0),
         "paginas_traducidas": meta.get("paginas_traducidas", 0),
         "idioma_traducido":  meta.get("idioma_traducido", ""),
-        "ultima_lectura":    meta.get("ultima_lectura", ""),
+        "ultima_lectura":    "",
         "title":             meta.get("title", ""),
         "fecha_clasificado": meta.get("fecha_clasificado", ""),
         "date":              str(meta.get("date", ""))[:10],
@@ -273,7 +273,39 @@ def _get_manga_list(section: str) -> list[dict]:
         logger.info("Mangas %s: %d ítems", section, len(result))
         return result
 
-    return get_cached(f"manga_list_{section}", _fetch, ttl=Config.CACHE_TTL_SHORT)
+    return _con_progreso_del_usuario(
+        get_cached(f"manga_list_{section}", _fetch, ttl=Config.CACHE_TTL_SHORT)
+    )
+
+
+def _progreso_actual() -> dict[str, dict]:
+    """Progreso del usuario de este request (leído una vez por request)."""
+    if not has_request_context() or not getattr(g, "usuario", None):
+        return {}
+    if "progreso" not in g:
+        g.progreso = progreso.de_usuario(g.usuario["usuario"])
+    return g.progreso
+
+
+def _con_progreso_del_usuario(items: list[dict]) -> list[dict]:
+    """Copia de la lista con paginas_leidas/paginas_max/ultima_lectura del
+    usuario actual. Solo se copian los ítems que tienen progreso; el resto se
+    comparte con el caché (que nunca se modifica)."""
+    prog = _progreso_actual()
+    if not prog:
+        return items
+    out = []
+    for m in items:
+        p = prog.get(m["nombre"].lower())
+        if p:
+            m = {
+                **m,
+                "paginas_leidas": p.get("pagina", 0),
+                "paginas_max":    max(p.get("max", 0), p.get("pagina", 0)),
+                "ultima_lectura": p.get("last_read", ""),
+            }
+        out.append(m)
+    return out
 
 
 def _lista_mis_favoritos() -> list[dict]:
@@ -1056,13 +1088,22 @@ def get_manga_info(categoria, preview_name):
 
         tag_names = _tags_as_names(tags)
 
+        # El progreso guardado en metadata.json es el compartido viejo: se
+        # reemplaza por el del usuario actual.
+        p = _progreso_actual().get(manga_name.lower(), {})
+        metadata = {**metadata,
+                    "paginas_leidas": p.get("pagina", 0),
+                    "paginas_max":    max(p.get("max", 0), p.get("pagina", 0)),
+                    "ultima_lectura": p.get("last_read", "")}
+        favs = {n.lower() for n in favoritos.nombres(g.usuario["usuario"])}
+
         return jsonify({
             "nombre":       os.path.basename(ruta),
             "paginas":      len(paginas),
             "paginas_list": paginas,
             "tamaño":       f"{size_mb:.2f} MB",
             "metadata":     metadata,
-            "es_favorito":  categoria == "favoritos",
+            "es_favorito":  manga_name.lower() in favs,
             "preview_path": f"/get_manga_preview/{categoria}/{preview_name}",
             "tags":         tag_names,
             "num_tags":     len(tag_names),
@@ -1382,6 +1423,7 @@ def rename_manga():
         save_json(os.path.join(dest_path, METADATA_FILE), meta)
 
         favoritos.renombrar_en_todos(manga_name, new_name)
+        progreso.renombrar_en_todos(manga_name, new_name)
 
         invalidate_cache("manga_list_")
         invalidate_cache("all_tags")
@@ -1598,17 +1640,70 @@ def api_manga_abrir_carpeta():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-# ── Progreso de lectura ───────────────────────────────────────────────────────
+# ── Progreso de lectura (de cada usuario, ver routes/progreso.py) ────────────
 
 def _progress_path() -> str:
+    """reading_progress.json: historial compartido de antes (solo se lee para
+    la migración)."""
     return os.path.join(Config.BASE_DIR, "reading_progress.json")
+
+
+def _progreso_compartido_legado() -> dict[str, dict]:
+    """Progreso compartido viejo (metadata.json de cada manga + historial),
+    en el formato de routes/progreso.py. Se usa una sola vez al migrar."""
+    historial = {
+        v.get("manga_name", "").lower(): v
+        for v in load_json(_progress_path(), {}).values() if isinstance(v, dict)
+    }
+    resultado: dict[str, dict] = {}
+    for section, (base_dir, _) in MANGA_SECTION_DIRS.items():
+        if not os.path.isdir(base_dir):
+            continue
+        for entry in os.scandir(base_dir):
+            if not entry.is_dir():
+                continue
+            meta = load_json(os.path.join(entry.path, METADATA_FILE), {})
+            pagina = int(meta.get("paginas_leidas", 0) or 0)
+            if pagina <= 0:
+                continue
+            h = historial.get(entry.name.lower(), {})
+            resultado[entry.name.lower()] = {
+                "manga_name": entry.name,
+                "category":   section,
+                "pagina":     pagina,
+                "max":        max(int(meta.get("paginas_max", 0) or 0), pagina),
+                "last_read":  meta.get("ultima_lectura") or h.get("last_read", ""),
+            }
+    return resultado
+
+
+progreso.register_migrador(_progreso_compartido_legado)
+
+
+def _mangas_por_nombre() -> dict[str, dict]:
+    """{nombre en minúsculas: ítem} de todas las secciones, con el progreso
+    del usuario actual."""
+    por_nombre: dict[str, dict] = {}
+    for section in MANGA_SECTION_DIRS:
+        for m in _get_manga_list(section):
+            por_nombre.setdefault(m["nombre"].lower(), m)
+    return por_nombre
+
+
+def _mi_progreso_ordenado() -> list[tuple[dict, dict]]:
+    """[(entrada de progreso, ítem actual)] del usuario, del más reciente al
+    más viejo. Omite los mangas que ya no existen."""
+    items = _mangas_por_nombre()
+    pares = [(e, items[k]) for k, e in _progreso_actual().items() if k in items]
+    pares.sort(key=lambda par: par[0].get("last_read", ""), reverse=True)
+    return pares
 
 
 @manga_bp.route("/save_reading_progress", methods=["POST"])
 def save_reading_progress():
     # force/silent: acepta también sendBeacon (llega como text/plain)
     data = request.get_json(force=True, silent=True) or {}
-    manga_name = data.get("manga_name")
+    manga_name = safe_basename(data.get("manga_name") or "")
     category = data.get("category")
     current_page = data.get("current_page")
 
@@ -1620,57 +1715,24 @@ def save_reading_progress():
     except (ValueError, TypeError):
         return jsonify({"success": False, "error": "página inválida"}), 400
 
-    meta = _get_manga_metadata(manga_name)
-    # paginas_leidas = posición actual (para reanudar);
-    # paginas_max = página más lejana alcanzada (para el estado "completado",
-    # que no se pierde al releer desde el principio)
-    meta["paginas_leidas"] = current_page
-    meta["paginas_max"] = max(int(meta.get("paginas_max", 0) or 0), current_page)
-    meta["ultima_lectura"] = datetime.now().isoformat()
-    _save_manga_metadata(manga_name, meta)
-
-    progress = load_json(_progress_path(), {})
-    key = f"{category}_{manga_name}"
-    progress[key] = {
-        "manga_name": manga_name,
-        "category": category,
-        "last_read": datetime.now().isoformat(),
-    }
-
-    if len(progress) > MAX_PROGRESS_ENTRIES:
-        sorted_items = sorted(
-            progress.items(), key=lambda x: x[1].get("last_read", ""), reverse=True
-        )
-        progress = dict(sorted_items[:KEEP_PROGRESS_ENTRIES])
-
-    save_json(_progress_path(), progress)
-    # Invalidar caché de manga_list para que progreso se actualice
-    invalidate_cache(f"manga_list_{category}")
+    progreso.guardar(g.usuario["usuario"], manga_name, str(category), current_page)
     return jsonify({"success": True})
 
 
 @manga_bp.route("/get_reading_progress")
 def get_reading_progress():
-    progress = load_json(_progress_path(), {})
-    result = {}
-    cleaned = False
-    for key, entry in progress.items():
-        manga_name = entry.get("manga_name", "")
-        if not _manga_exists(manga_name):
-            cleaned = True
-            continue
-        meta = _get_manga_metadata(manga_name)
-        result[key] = {
-            **entry,
-            "current_page":   meta.get("paginas_leidas", 0),
-            "paginas_total":  meta.get("paginas_total", 0),
+    """{"<sección>_<manga>": {...}} con la sección ACTUAL de cada manga (si se
+    movió de sección después de leerlo, el progreso lo sigue)."""
+    resultado = {}
+    for e, item in _mi_progreso_ordenado():
+        resultado[f'{item["tipo"]}_{item["nombre"]}'] = {
+            "manga_name":    item["nombre"],
+            "category":      item["tipo"],
+            "last_read":     e.get("last_read", ""),
+            "current_page":  e.get("pagina", 0),
+            "paginas_total": item.get("paginas_total", 0),
         }
-    if cleaned:
-        save_json(_progress_path(), {
-            k: {"manga_name": v["manga_name"], "category": v["category"], "last_read": v["last_read"]}
-            for k, v in result.items()
-        })
-    return jsonify(result)
+    return jsonify(resultado)
 
 
 @manga_bp.route("/api/manga/continuar_leyendo")
@@ -1685,37 +1747,28 @@ def continuar_leyendo():
     except (ValueError, TypeError):
         limit = 20
 
-    progress = load_json(_progress_path(), {})
     resultado = []
-
-    for entry in progress.values():
-        manga_name = entry.get("manga_name", "")
-        if not _manga_exists(manga_name):
-            continue
-        meta = _get_manga_metadata(manga_name)
-        leidas = meta.get("paginas_leidas", 0)
-        total = meta.get("paginas_total", 0)
+    for e, item in _mi_progreso_ordenado():
+        leidas = e.get("pagina", 0)
+        total = item.get("paginas_total", 0)
         if leidas <= 0 or (total > 0 and leidas >= total):
             continue
-
         resultado.append({
-            "manga_name":    manga_name,
-            "category":      entry.get("category", ""),
+            "manga_name":     item["nombre"],
+            "category":       item["tipo"],
             "paginas_leidas": leidas,
             "paginas_total":  total,
             "porcentaje":     round(leidas / total * 100, 1) if total else 0,
-            "ultima_lectura": meta.get("ultima_lectura", entry.get("last_read", "")),
+            "ultima_lectura": e.get("last_read", ""),
         })
-
-    resultado.sort(key=lambda x: x["ultima_lectura"], reverse=True)
     return jsonify({"mangas": resultado[:limit], "total": len(resultado)})
 
 
 @manga_bp.route("/api/manga/historial")
 def manga_historial():
     """
-    Últimos mangas vistos (incluye completados, a diferencia de
-    continuar_leyendo), enriquecidos con preview y progreso.
+    Últimos mangas vistos por el usuario (incluye completados, a diferencia
+    de continuar_leyendo), enriquecidos con preview y progreso.
     Query param: limit (default 12)
     """
     try:
@@ -1723,54 +1776,31 @@ def manga_historial():
     except (ValueError, TypeError):
         limit = 12
 
-    # Mapa nombre → item con las listas cacheadas
-    por_nombre: dict[str, dict] = {}
-    for section in MANGA_SECTION_DIRS:
-        for m in _get_manga_list(section):
-            por_nombre.setdefault(m["nombre"].lower(), m)
-
-    progress = load_json(_progress_path(), {})
-    entradas = sorted(
-        progress.values(), key=lambda x: x.get("last_read", ""), reverse=True
-    )
-
-    resultado = []
-    for entry in entradas:
-        item = por_nombre.get(entry.get("manga_name", "").lower())
-        if not item:
-            continue
-        resultado.append({
-            **item,
-            "last_read": entry.get("last_read", ""),
-        })
-        if len(resultado) >= limit:
-            break
-
+    resultado = [
+        {**item, "last_read": e.get("last_read", "")}
+        for e, item in _mi_progreso_ordenado()[:limit]
+    ]
     return jsonify({"mangas": resultado})
 
 
 @manga_bp.route("/get_last_read_manga")
 def get_last_read_manga():
-    progress = load_json(_progress_path(), {})
-    if not progress:
+    pares = _mi_progreso_ordenado()
+    if not pares:
         return jsonify(None)
-    last_entry = max(progress.values(), key=lambda x: x.get("last_read", ""))
-    manga_name = last_entry.get("manga_name", "")
-    meta = _get_manga_metadata(manga_name)
+    e, item = pares[0]
     return jsonify({
-        **last_entry,
-        "current_page":  meta.get("paginas_leidas", 0),
-        "paginas_total": meta.get("paginas_total", 0),
+        "manga_name":    item["nombre"],
+        "category":      item["tipo"],
+        "last_read":     e.get("last_read", ""),
+        "current_page":  e.get("pagina", 0),
+        "paginas_total": item.get("paginas_total", 0),
     })
 
 
 @manga_bp.route("/cleanup_reading_progress", methods=["POST"])
 def cleanup_reading_progress():
-    progress = load_json(_progress_path(), {})
-    before = len(progress)
-    clean = {k: v for k, v in progress.items() if _manga_exists(v.get("manga_name", ""))}
-    removed = before - len(clean)
-    save_json(_progress_path(), clean)
+    removed = progreso.limpiar(g.usuario["usuario"], _manga_exists)
     return jsonify({"success": True, "message": f"Se eliminaron {removed} entradas"})
 
 

@@ -5,7 +5,7 @@
 # una sección más de la biblioteca.
 #
 # Migración (una sola vez): los mangas que estaban en la carpeta Favoritos
-# pasan a ser favoritos de Config.FAVORITOS_CARPETA_USUARIO la primera vez
+# pasan a ser favoritos de Config.USUARIO_PRINCIPAL la primera vez
 # que se leen los favoritos de esa cuenta.
 import os
 import logging
@@ -48,7 +48,7 @@ def _nombres_carpeta_favoritos() -> list[str]:
 
 def _migrar_si_corresponde(data: dict, clave: str) -> bool:
     """Devuelve True si cambió `data` (hay que guardarlo)."""
-    if data.get("migrado_carpeta") or clave != Config.FAVORITOS_CARPETA_USUARIO.lower():
+    if data.get("migrado_carpeta") or clave != Config.USUARIO_PRINCIPAL.lower():
         return False
     actuales = data["usuarios"].setdefault(clave, [])
     vistos = {n.lower() for n in actuales}
@@ -56,7 +56,7 @@ def _migrar_si_corresponde(data: dict, clave: str) -> bool:
     actuales.extend(nuevos)
     data["migrado_carpeta"] = True
     logger.info("Favoritos: %d mangas de la carpeta Favoritos pasados a '%s'",
-                len(nuevos), Config.FAVORITOS_CARPETA_USUARIO)
+                len(nuevos), Config.USUARIO_PRINCIPAL)
     return True
 
 

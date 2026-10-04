@@ -20,7 +20,7 @@ Todos entran con usuario y contraseña. Hay dos roles:
 | Acción | Lector | Admin |
 |---|:---:|:---:|
 | Ver la biblioteca, buscar, leer, guardar progreso | ✅ | ✅ |
-| Marcar sus propios favoritos | ✅ | ✅ |
+| Sus propios favoritos, progreso e historial | ✅ | ✅ |
 | Cambiar su propia contraseña | ✅ | ✅ |
 | Descargas (hitomi, 3hentai) | | ✅ |
 | Borrar, mover, renombrar, tags, series, colecciones, categorías | | ✅ |
@@ -32,7 +32,9 @@ Los permisos se aplican en el servidor (`routes/auth.py`), no solo en la interfa
 
 **Primer arranque:** si no existe ninguna cuenta, se crea un admin con `ADMIN_USER` (por defecto `admin`) y `ADMIN_PASSWORD`. Sin `ADMIN_PASSWORD` no se crea nada y nadie puede entrar. Después, el resto de las cuentas se crean desde `/usuarios`.
 
-**Favoritos:** cada usuario tiene los suyos ("Mis favoritos"), y marcar uno no mueve ningún archivo. La carpeta física `Favoritos` quedó como una sección más ("Carpeta Favoritos"). La primera vez que entra la cuenta `FAVORITOS_CARPETA_USUARIO` (por defecto `senpai1940`), los mangas de esa carpeta pasan a ser sus favoritos.
+**Personal de cada usuario:** los favoritos ("Mis favoritos"), el progreso de lectura (barras, filtros "sin leer / en progreso / leído", "seguir leyendo") y el historial ("Últimos vistos"). Marcar un favorito no mueve ningún archivo: la carpeta física `Favoritos` quedó como una sección más ("Carpeta Favoritos").
+
+La primera vez que entra la cuenta `USUARIO_PRINCIPAL` (por defecto `senpai1940`), recibe lo que antes era compartido: los mangas de la carpeta Favoritos como favoritos, y el progreso y el historial de lectura. Pasa una sola vez.
 
 Las contraseñas se guardan con hash (nunca en claro). Tras 5 intentos fallidos desde la misma IP, el login se bloquea 5 minutos. Cambiar la contraseña o el rol de alguien cierra sus sesiones abiertas.
 
@@ -54,7 +56,7 @@ Todo se configura con variables de entorno. Los valores por defecto son las ruta
 | `DATA_DIR` | `D:/General` | Datos de la app: usuarios, índice, historial de sorteo |
 | `ADMIN_USER` | `admin` | Usuario del primer admin |
 | `ADMIN_PASSWORD` | — | Contraseña del primer admin (solo se usa si no hay cuentas) |
-| `FAVORITOS_CARPETA_USUARIO` | `senpai1940` | Cuenta que recibe los mangas de la carpeta Favoritos como favoritos |
+| `USUARIO_PRINCIPAL` | `senpai1940` | Cuenta que recibe los favoritos, el progreso y el historial que antes eran compartidos |
 | `SECRET_KEY` | se genera en `DATA_DIR/secret_key` | Firma de las cookies de sesión |
 | `PORT` | `5000` | Puerto del servidor |
 | `TRADUCTOR_DIR` | `C:\Herramientas\manga-image-translator` | Instalación del traductor |
@@ -83,6 +85,7 @@ routes/
   categorias.py     secciones editables
   colecciones.py    carpetas virtuales
   favoritos.py      favoritos personales de cada usuario
+  progreso.py       progreso de lectura e historial de cada usuario
   image_hash.py     duplicados por hash perceptual
   manga_export.py   CBZ / PDF
   manga_traductor*.py, cache_overflow.py   traductor (opcional)
